@@ -120,3 +120,25 @@ export async function markInstallmentPaid(installmentId: string) {
   revalidatePath("/");
   revalidatePath(`/people/${installment.obligation.personId}`);
 }
+
+export async function deleteObligation(obligationId: string) {
+  const obligation = await prisma.obligation.findUnique({
+    where: { id: obligationId },
+    select: { personId: true },
+  });
+  if (!obligation) {
+    return;
+  }
+
+  await prisma.obligation.delete({ where: { id: obligationId } });
+  revalidatePath("/");
+  revalidatePath("/obligations/new");
+  revalidatePath(`/people/${obligation.personId}`);
+}
+
+export async function deletePerson(personId: string) {
+  await prisma.person.delete({ where: { id: personId } });
+  revalidatePath("/");
+  revalidatePath("/obligations/new");
+  redirect("/");
+}

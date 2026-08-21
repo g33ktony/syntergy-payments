@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { markInstallmentPaid } from "@/lib/actions";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { deleteObligation, markInstallmentPaid } from "@/lib/actions";
 import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
 import { progressFor } from "@/lib/queries";
@@ -13,6 +14,7 @@ type RowProps = {
     dueDate: Date;
     paidAt: Date | null;
     obligation: {
+      id: string;
       title: string;
       currency: string;
       person: { id: string; name: string };
@@ -56,16 +58,23 @@ export function InstallmentRow({ installment, showPaidAt }: RowProps) {
           )}
         </p>
       </div>
-      {!installment.paidAt ? (
-        <form action={markInstallmentPaid.bind(null, installment.id)}>
-          <button
-            type="submit"
-            className="rounded-lg border border-stone-600 px-3 py-1.5 text-sm text-stone-200 hover:border-amber-200/70 hover:text-amber-100"
-          >
-            Mark paid
-          </button>
-        </form>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        {!installment.paidAt ? (
+          <form action={markInstallmentPaid.bind(null, installment.id)}>
+            <button
+              type="submit"
+              className="rounded-lg border border-stone-600 px-3 py-1.5 text-sm text-stone-200 hover:border-amber-200/70 hover:text-amber-100"
+            >
+              Mark paid
+            </button>
+          </form>
+        ) : null}
+        <ConfirmDeleteButton
+          label="Delete"
+          confirmMessage={`Delete “${installment.obligation.title}” and all of its installments?`}
+          onDelete={deleteObligation.bind(null, installment.obligation.id)}
+        />
+      </div>
     </li>
   );
 }

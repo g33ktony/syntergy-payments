@@ -1,5 +1,7 @@
 import { AppHeader } from "@/components/app-header";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { InstallmentRow } from "@/components/installment-row";
+import { deleteObligation, deletePerson } from "@/lib/actions";
 import { formatMoney } from "@/lib/money";
 import { getPersonProfile, progressFor } from "@/lib/queries";
 import { formatDueDate } from "@/lib/installments";
@@ -40,9 +42,16 @@ export default async function PersonPage({
               <p className="mt-2 text-sm text-stone-400">{profile.person.notes}</p>
             ) : null}
           </div>
-          <p className="font-mono text-lg text-amber-100">
-            {formatMoney(profile.openBalance, currency)} open
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-lg text-amber-100">
+              {formatMoney(profile.openBalance, currency)} open
+            </p>
+            <ConfirmDeleteButton
+              label="Delete person"
+              confirmMessage={`Delete ${profile.person.name} and every obligation attached to them?`}
+              onDelete={deletePerson.bind(null, profile.person.id)}
+            />
+          </div>
         </div>
 
         {profile.overdueCount > 0 ? (
@@ -66,6 +75,7 @@ export default async function PersonPage({
                   installment={{
                     ...installment,
                     obligation: {
+                      id: obligation.id,
                       title: obligation.title,
                       currency: obligation.currency,
                       person: profile.person,
@@ -92,6 +102,7 @@ export default async function PersonPage({
                   installment={{
                     ...installment,
                     obligation: {
+                      id: obligation.id,
                       title: obligation.title,
                       currency: obligation.currency,
                       person: profile.person,
@@ -116,17 +127,24 @@ export default async function PersonPage({
               {profile.person.obligations.map((obligation) => {
                 const { paidCount, total } = progressFor(obligation.installments);
                 return (
-                  <li key={obligation.id} className="py-4">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-stone-50">{obligation.title}</p>
-                      <p className="font-mono text-sm text-stone-300">
-                        {formatMoney(obligation.totalAmount, obligation.currency)}
+                  <li key={obligation.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
+                    <div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-stone-50">{obligation.title}</p>
+                        <p className="font-mono text-sm text-stone-300">
+                          {formatMoney(obligation.totalAmount, obligation.currency)}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-stone-500">
+                        {paidCount}/{total} paid · started{" "}
+                        {formatDueDate(obligation.installments[0]?.dueDate ?? obligation.createdAt)}
                       </p>
                     </div>
-                    <p className="mt-1 text-xs text-stone-500">
-                      {paidCount}/{total} paid · started{" "}
-                      {formatDueDate(obligation.installments[0]?.dueDate ?? obligation.createdAt)}
-                    </p>
+                    <ConfirmDeleteButton
+                      label="Delete"
+                      confirmMessage={`Delete “${obligation.title}” and all of its installments?`}
+                      onDelete={deleteObligation.bind(null, obligation.id)}
+                    />
                   </li>
                 );
               })}
