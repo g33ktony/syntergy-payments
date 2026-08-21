@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   description: "Personal ledger of money people owe you.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
