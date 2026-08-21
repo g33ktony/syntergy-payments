@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
-import { deleteObligation, markInstallmentPaid } from "@/lib/actions";
+import { MarkPaidButtons } from "@/components/mark-paid-buttons";
+import { deleteObligation } from "@/lib/actions";
+import { getDictionary } from "@/lib/get-dictionary";
+import { localeTag } from "@/lib/i18n";
 import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
 import { progressFor } from "@/lib/queries";
 import { startOfUtcDay } from "@/lib/installments";
+import type { PaymentMethod } from "@/lib/payment-method";
 
 type RowProps = {
   installment: {
@@ -13,6 +17,7 @@ type RowProps = {
     amount: number;
     dueDate: Date;
     paidAt: Date | null;
+    paymentMethod?: PaymentMethod | null;
     obligation: {
       id: string;
       title: string;
@@ -24,10 +29,18 @@ type RowProps = {
   showPaidAt?: boolean;
 };
 
-export function InstallmentRow({ installment, showPaidAt }: RowProps) {
+export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
+  const { locale, t } = await getDictionary();
+  const tag = localeTag(locale);
   const { paidCount, total } = progressFor(installment.obligation.installments);
   const today = startOfUtcDay();
   const overdue = !installment.paidAt && installment.dueDate < today;
+  const methodLabel =
+    installment.paymentMethod === "CASH"
+      ? t.method.CASH
+      : installment.paymentMethod === "TRANSFER"
+        ? t.method.TRANSFER
+        : t.method.unknown;
 
   return (
     <li className="grid grid-cols-1 gap-3 border-b border-stone-800 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -40,7 +53,7 @@ export function InstallmentRow({ installment, showPaidAt }: RowProps) {
             {installment.obligation.person.name}
           </Link>
           <span className="font-mono text-sm text-amber-100">
-            {formatMoney(installment.amount, installment.obligation.currency)}
+            {formatMoney(installment.amount, installment.obligation.currency, tag)}
           </span>
         </div>
         <p className="mt-1 text-sm text-stone-400">
@@ -50,28 +63,34 @@ export function InstallmentRow({ installment, showPaidAt }: RowProps) {
           {paidCount}/{total}
           {" · "}
           {overdue ? (
-            <span className="text-red-300">Overdue {formatDueDate(installment.dueDate)}</span>
+            <span className="text-red-300">
+              {t.row.overdue} {formatDueDate(installment.dueDate, tag)}
+            </span>
           ) : installment.paidAt && showPaidAt ? (
-            <span>Paid {formatDueDate(installment.paidAt)}</span>
+            <span>
+              {t.row.paid} {formatDueDate(installment.paidAt, tag)}
+              {" · "}
+              {methodLabel}
+            </span>
           ) : (
-            <span>Due {formatDueDate(installment.dueDate)}</span>
+            <span>
+              {t.row.due} {formatDueDate(installment.dueDate, tag)}
+            </span>
           )}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {!installment.paidAt ? (
-          <form action={markInstallmentPaid.bind(null, installment.id)}>
-            <button
-              type="submit"
-              className="rounded-lg border border-stone-600 px-3 py-1.5 text-sm text-stone-200 hover:border-amber-200/70 hover:text-amber-100"
-            >
-              Mark paid
-            </button>
-          </form>
+          <MarkPaidButtons
+            installmentId={installment.id}
+            cashLabel={t.paid.cash}
+            transferLabel={t.paid.transfer}
+          />
         ) : null}
         <ConfirmDeleteButton
-          label="Delete"
-          confirmMessage={`Delete “${installment.obligation.title}” and all of its installments?`}
+          label={t.row.delete}
+          pendingLabel={t.row.deleting}
+          confirmMessage={t.row.deleteObligationConfirm(installment.obligation.title)}
           onDelete={deleteObligation.bind(null, installment.obligation.id)}
         />
       </div>

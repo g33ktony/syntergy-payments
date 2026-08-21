@@ -2,39 +2,37 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getDictionary } from "@/lib/get-dictionary";
 import { prisma } from "@/lib/db";
 import {
   monthlyDueDates,
   splitInstallmentAmounts,
 } from "@/lib/installments";
 import { defaultCurrency, parseAmountToCents } from "@/lib/money";
+import { isPaymentMethod, type PaymentMethod } from "@/lib/payment-method";
 
 export type ActionState = {
   error?: string;
 };
 
-export async function createPerson(formData: FormData): Promise<ActionState> {
-  const name = String(formData.get("name") || "").trim();
-  const notes = String(formData.get("notes") || "").trim();
-  if (!name) {
-    return { error: "Name is required." };
-  }
-
-  await prisma.person.create({
-    data: { name, notes: notes || null },
-  });
+function refreshPaths(personId?: string) {
   revalidatePath("/");
+  revalidatePath("/wallet");
   revalidatePath("/obligations/new");
-  return {};
+  if (personId) {
+    revalidatePath(`/people/${personId}`);
+  }
 }
 
 export async function createObligation(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const { t } = await getDictionary();
   const title = String(formData.get("title") || "").trim();
   const personId = String(formData.get("personId") || "");
   const newPersonName = String(formData.get("newPersonName") || "").trim();
+  const newPersonPhone = String(formData.get("newPersonPhone") || "").trim();
   const currency = (
     String(formData.get("currency") || defaultCurrency())
   )
@@ -45,36 +43,36 @@ export async function createObligation(
   const totalCents = parseAmountToCents(String(formData.get("totalAmount") || ""));
 
   if (!title) {
-    return { error: "Reason or product is required." };
+    return { error: t.errors.reasonRequired };
   }
   if (!totalCents || totalCents <= 0) {
-    return { error: "Enter a valid amount (for example 120.50)." };
+    return { error: t.errors.amountInvalid };
   }
   if (!Number.isInteger(installmentCount) || installmentCount < 1) {
-    return { error: "Installments must be at least 1." };
+    return { error: t.errors.installmentsMin };
   }
   if (installmentCount > 60) {
-    return { error: "Keep installments to 60 or fewer." };
+    return { error: t.errors.installmentsMax };
   }
   if (!/^[A-Z]{3}$/.test(currency)) {
-    return { error: "Currency must be a 3-letter code." };
+    return { error: t.errors.currencyInvalid };
   }
   if (!firstDueRaw) {
-    return { error: "A first due date is required." };
+    return { error: t.errors.dueRequired };
   }
 
   const firstDue = new Date(`${firstDueRaw}T00:00:00.000Z`);
   if (Number.isNaN(firstDue.getTime())) {
-    return { error: "First due date is invalid." };
+    return { error: t.errors.dueInvalid };
   }
 
   let resolvedPersonId = personId;
   if (personId === "__new__" || !personId) {
     if (!newPersonName) {
-      return { error: "Choose a person or enter a new name." };
+      return { error: t.errors.personRequired };
     }
     const person = await prisma.person.create({
-      data: { name: newPersonName },
+      data: { name: newPersonName, phone: newPersonPhone || null },
     });
     resolvedPersonId = person.id;
   } else {
@@ -82,7 +80,7 @@ export async function createObligation(
       where: { id: personId },
     });
     if (!existing) {
-      return { error: "That person was not found." };
+      return { error: t.errors.personMissing };
     }
   }
 
@@ -106,19 +104,47 @@ export async function createObligation(
     },
   });
 
-  revalidatePath("/");
-  revalidatePath(`/people/${resolvedPersonId}`);
+  refreshPaths(resolvedPersonId);
   redirect(`/people/${resolvedPersonId}?created=${obligation.id}`);
 }
 
-export async function markInstallmentPaid(installmentId: string) {
+export async function updatePerson(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { t } = await getDictionary();
+  const personId = String(formData.get("personId") || "");
+  const name = String(formData.get("name") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+
+  if (!name) {
+    return { error: t.errors.nameRequired };
+  }
+
+  await prisma.person.update({
+    where: { id: personId },
+    data: { name, phone: phone || null, notes: notes || null },
+  });
+  refreshPaths(personId);
+  return {};
+}
+
+export async function markInstallmentPaid(
+  installmentId: string,
+  method: PaymentMethod,
+) {
+  const { t } = await getDictionary();
+  if (!isPaymentMethod(method)) {
+    throw new Error(t.errors.paymentMethodRequired);
+  }
+
   const installment = await prisma.installment.update({
     where: { id: installmentId },
-    data: { paidAt: new Date() },
+    data: { paidAt: new Date(), paymentMethod: method },
     include: { obligation: true },
   });
-  revalidatePath("/");
-  revalidatePath(`/people/${installment.obligation.personId}`);
+  refreshPaths(installment.obligation.personId);
 }
 
 export async function deleteObligation(obligationId: string) {
@@ -131,14 +157,11 @@ export async function deleteObligation(obligationId: string) {
   }
 
   await prisma.obligation.delete({ where: { id: obligationId } });
-  revalidatePath("/");
-  revalidatePath("/obligations/new");
-  revalidatePath(`/people/${obligation.personId}`);
+  refreshPaths(obligation.personId);
 }
 
 export async function deletePerson(personId: string) {
   await prisma.person.delete({ where: { id: personId } });
-  revalidatePath("/");
-  revalidatePath("/obligations/new");
+  refreshPaths();
   redirect("/");
 }

@@ -7,8 +7,8 @@ export function parseAmountToCents(raw: string) {
   return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
 }
 
-export function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
+export function formatMoney(cents: number, currency: string, locale = "es-MX") {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
   }).format(cents / 100);

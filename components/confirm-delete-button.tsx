@@ -4,10 +4,12 @@ import { useTransition } from "react";
 
 export function ConfirmDeleteButton({
   label,
+  pendingLabel,
   confirmMessage,
   onDelete,
 }: {
   label: string;
+  pendingLabel: string;
   confirmMessage: string;
   onDelete: () => Promise<void>;
 }) {
@@ -27,7 +29,7 @@ export function ConfirmDeleteButton({
       }}
       className="rounded-lg border border-stone-700 px-3 py-1.5 text-sm text-stone-400 hover:border-red-400/50 hover:text-red-300 disabled:opacity-60"
     >
-      {pending ? "Deleting…" : label}
+      {pending ? pendingLabel : label}
     </button>
   );
 }

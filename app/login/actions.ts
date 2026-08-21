@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth";
+import { getDictionary } from "@/lib/get-dictionary";
 
 export type LoginState = { error?: string };
 
@@ -18,7 +19,8 @@ export async function login(
   const password = String(formData.get("password") || "");
   const next = String(formData.get("next") || "/");
   if (!passwordsMatch(password)) {
-    return { error: "That password is not correct." };
+    const { t } = await getDictionary();
+    return { error: t.login.error };
   }
 
   const jar = await cookies();

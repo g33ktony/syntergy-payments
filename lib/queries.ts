@@ -70,10 +70,26 @@ export async function getPersonProfile(id: string) {
     0,
   );
   const today = startOfUtcDay();
+  const paidTotal = paid.reduce((sum, { installment }) => sum + installment.amount, 0);
+  const registeredTotal = person.obligations.reduce(
+    (sum, obligation) => sum + obligation.totalAmount,
+    0,
+  );
+  const cashPaid = paid
+    .filter(({ installment }) => installment.paymentMethod === "CASH")
+    .reduce((sum, { installment }) => sum + installment.amount, 0);
+  const transferPaid = paid
+    .filter(({ installment }) => installment.paymentMethod === "TRANSFER")
+    .reduce((sum, { installment }) => sum + installment.amount, 0);
 
   return {
     person,
     openBalance,
+    paidTotal,
+    registeredTotal,
+    cashPaid,
+    transferPaid,
+    lastPaidAt: paid[0]?.installment.paidAt ?? null,
     upcoming: unpaid
       .slice()
       .sort(
@@ -90,4 +106,38 @@ export async function getPersonProfile(id: string) {
 export function progressFor(installments: { paidAt: Date | null }[]) {
   const paidCount = installments.filter((item) => item.paidAt).length;
   return { paidCount, total: installments.length };
+}
+
+export async function getWallet() {
+  const paid = await prisma.installment.findMany({
+    where: { paidAt: { not: null } },
+    orderBy: { paidAt: "desc" },
+    include: installmentInclude,
+  });
+
+  const byCurrency = new Map<
+    string,
+    { total: number; cash: number; transfer: number; unrecorded: number }
+  >();
+
+  for (const item of paid) {
+    const currency = item.obligation.currency;
+    const bucket = byCurrency.get(currency) ?? {
+      total: 0,
+      cash: 0,
+      transfer: 0,
+      unrecorded: 0,
+    };
+    bucket.total += item.amount;
+    if (item.paymentMethod === "CASH") {
+      bucket.cash += item.amount;
+    } else if (item.paymentMethod === "TRANSFER") {
+      bucket.transfer += item.amount;
+    } else {
+      bucket.unrecorded += item.amount;
+    }
+    byCurrency.set(currency, bucket);
+  }
+
+  return { paid, totals: [...byCurrency.entries()] };
 }

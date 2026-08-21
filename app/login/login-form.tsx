@@ -5,14 +5,24 @@ import { login, type LoginState } from "@/app/login/actions";
 
 const initial: LoginState = {};
 
-export function LoginForm({ nextPath }: { nextPath: string }) {
+export function LoginForm({
+  nextPath,
+  passwordLabel,
+  submitLabel,
+  submittingLabel,
+}: {
+  nextPath: string;
+  passwordLabel: string;
+  submitLabel: string;
+  submittingLabel: string;
+}) {
   const [state, action, pending] = useActionState(login, initial);
 
   return (
     <form action={action} className="mt-10 flex flex-col gap-4">
       <input type="hidden" name="next" value={nextPath} />
       <label className="flex flex-col gap-2 text-sm text-stone-300">
-        Password
+        {passwordLabel}
         <input
           type="password"
           name="password"
@@ -32,7 +42,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         disabled={pending}
         className="mt-2 rounded-lg bg-amber-200 px-4 py-2.5 text-sm font-medium text-stone-950 disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? submittingLabel : submitLabel}
       </button>
     </form>
   );

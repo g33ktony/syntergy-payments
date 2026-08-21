@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createObligation, type ActionState } from "@/lib/actions";
+import type { Dictionary } from "@/lib/i18n";
 
 type Person = { id: string; name: string };
 
@@ -10,18 +11,21 @@ const initial: ActionState = {};
 export function ObligationForm({
   people,
   defaultCurrency,
+  t,
 }: {
   people: Person[];
   defaultCurrency: string;
+  t: Dictionary;
 }) {
   const [state, action, pending] = useActionState(createObligation, initial);
   const [personId, setPersonId] = useState(people[0]?.id ?? "__new__");
   const today = new Date().toISOString().slice(0, 10);
+  const showNewPerson = personId === "__new__" || people.length === 0;
 
   return (
     <form action={action} className="mt-8 flex max-w-xl flex-col gap-5">
       <label className="flex flex-col gap-2 text-sm text-stone-300">
-        Person
+        {t.obligation.person}
         <select
           name="personId"
           value={personId}
@@ -33,34 +37,44 @@ export function ObligationForm({
               {person.name}
             </option>
           ))}
-          <option value="__new__">Someone new…</option>
+          <option value="__new__">{t.obligation.someoneNew}</option>
         </select>
       </label>
 
-      {personId === "__new__" || people.length === 0 ? (
-        <label className="flex flex-col gap-2 text-sm text-stone-300">
-          New person name
-          <input
-            name="newPersonName"
-            required={personId === "__new__" || people.length === 0}
-            className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
-          />
-        </label>
+      {showNewPerson ? (
+        <>
+          <label className="flex flex-col gap-2 text-sm text-stone-300">
+            {t.obligation.newPersonName}
+            <input
+              name="newPersonName"
+              required
+              className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-sm text-stone-300">
+            {t.obligation.newPersonPhone}
+            <input
+              name="newPersonPhone"
+              inputMode="tel"
+              className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            />
+          </label>
+        </>
       ) : null}
 
       <label className="flex flex-col gap-2 text-sm text-stone-300">
-        Reason or product
+        {t.obligation.reason}
         <input
           name="title"
           required
-          placeholder="Refrigerator, taxi, laptop…"
+          placeholder={t.obligation.reasonPlaceholder}
           className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
         />
       </label>
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          Total amount
+          {t.obligation.total}
           <input
             name="totalAmount"
             required
@@ -70,7 +84,7 @@ export function ObligationForm({
           />
         </label>
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          Currency
+          {t.obligation.currency}
           <input
             name="currency"
             defaultValue={defaultCurrency}
@@ -82,7 +96,7 @@ export function ObligationForm({
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          Installments
+          {t.obligation.installments}
           <input
             name="installmentCount"
             type="number"
@@ -93,7 +107,7 @@ export function ObligationForm({
           />
         </label>
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          First due date
+          {t.obligation.firstDue}
           <input
             name="firstDueDate"
             type="date"
@@ -104,10 +118,7 @@ export function ObligationForm({
         </label>
       </div>
 
-      <p className="text-xs leading-5 text-stone-500">
-        Multiple installments are split evenly and scheduled monthly from the
-        first due date. Remainder cents go on the last payment.
-      </p>
+      <p className="text-xs leading-5 text-stone-500">{t.obligation.hint}</p>
 
       {state.error ? (
         <p className="text-sm text-red-300" role="alert">
@@ -120,7 +131,7 @@ export function ObligationForm({
         disabled={pending}
         className="rounded-lg bg-amber-200 px-4 py-2.5 text-sm font-medium text-stone-950 disabled:opacity-60"
       >
-        {pending ? "Saving…" : "Register obligation"}
+        {pending ? t.obligation.saving : t.obligation.submit}
       </button>
     </form>
   );

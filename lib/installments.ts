@@ -24,8 +24,8 @@ export function startOfUtcDay(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-export function formatDueDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
+export function formatDueDate(date: Date, locale = "es-MX") {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
