@@ -32,6 +32,7 @@ export async function createObligation(
   const title = String(formData.get("title") || "").trim();
   const personId = String(formData.get("personId") || "");
   const newPersonName = String(formData.get("newPersonName") || "").trim();
+  const newPersonNickname = String(formData.get("newPersonNickname") || "").trim();
   const newPersonPhone = String(formData.get("newPersonPhone") || "").trim();
   const currency = (
     String(formData.get("currency") || defaultCurrency())
@@ -72,7 +73,11 @@ export async function createObligation(
       return { error: t.errors.personRequired };
     }
     const person = await prisma.person.create({
-      data: { name: newPersonName, phone: newPersonPhone || null },
+      data: {
+        name: newPersonName,
+        nickname: newPersonNickname || null,
+        phone: newPersonPhone || null,
+      },
     });
     resolvedPersonId = person.id;
   } else {
@@ -115,16 +120,31 @@ export async function updatePerson(
   const { t } = await getDictionary();
   const personId = String(formData.get("personId") || "");
   const name = String(formData.get("name") || "").trim();
+  const nickname = String(formData.get("nickname") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
+  const howKnown = String(formData.get("howKnown") || "").trim();
+  const preferredRaw = String(formData.get("preferredPaymentMethod") || "").trim();
+  const bankClabe = String(formData.get("bankClabe") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
 
   if (!name) {
     return { error: t.errors.nameRequired };
   }
+  if (preferredRaw && !isPaymentMethod(preferredRaw)) {
+    return { error: t.errors.paymentMethodRequired };
+  }
 
   await prisma.person.update({
     where: { id: personId },
-    data: { name, phone: phone || null, notes: notes || null },
+    data: {
+      name,
+      nickname: nickname || null,
+      phone: phone || null,
+      howKnown: howKnown || null,
+      preferredPaymentMethod: isPaymentMethod(preferredRaw) ? preferredRaw : null,
+      bankClabe: bankClabe || null,
+      notes: notes || null,
+    },
   });
   refreshPaths(personId);
   return {};

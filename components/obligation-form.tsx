@@ -3,122 +3,121 @@
 import { useActionState, useState } from "react";
 import { createObligation, type ActionState } from "@/lib/actions";
 import type { Dictionary } from "@/lib/i18n";
+import { personLabel } from "@/lib/person";
 
-type Person = { id: string; name: string };
+type Person = { id: string; name: string; nickname: string | null };
 
 const initial: ActionState = {};
 
 export function ObligationForm({
   people,
   defaultCurrency,
-  t,
+  copy,
 }: {
   people: Person[];
   defaultCurrency: string;
-  t: Dictionary;
+  copy: Dictionary["obligation"];
 }) {
   const [state, action, pending] = useActionState(createObligation, initial);
   const [personId, setPersonId] = useState(people[0]?.id ?? "__new__");
   const today = new Date().toISOString().slice(0, 10);
   const showNewPerson = personId === "__new__" || people.length === 0;
+  const fieldClass =
+    "rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2";
 
   return (
     <form action={action} className="mt-8 flex max-w-xl flex-col gap-5">
       <label className="flex flex-col gap-2 text-sm text-stone-300">
-        {t.obligation.person}
+        {copy.person}
         <select
           name="personId"
           value={personId}
           onChange={(event) => setPersonId(event.target.value)}
-          className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+          className={fieldClass}
         >
           {people.map((person) => (
             <option key={person.id} value={person.id}>
-              {person.name}
+              {personLabel(person)}
             </option>
           ))}
-          <option value="__new__">{t.obligation.someoneNew}</option>
+          <option value="__new__">{copy.someoneNew}</option>
         </select>
       </label>
 
       {showNewPerson ? (
         <>
           <label className="flex flex-col gap-2 text-sm text-stone-300">
-            {t.obligation.newPersonName}
-            <input
-              name="newPersonName"
-              required
-              className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
-            />
+            {copy.newPersonName}
+            <input name="newPersonName" required className={fieldClass} />
           </label>
           <label className="flex flex-col gap-2 text-sm text-stone-300">
-            {t.obligation.newPersonPhone}
-            <input
-              name="newPersonPhone"
-              inputMode="tel"
-              className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
-            />
+            {copy.newPersonNickname}
+            <input name="newPersonNickname" className={fieldClass} />
+          </label>
+          <label className="flex flex-col gap-2 text-sm text-stone-300">
+            {copy.newPersonPhone}
+            <input name="newPersonPhone" inputMode="tel" className={fieldClass} />
           </label>
         </>
       ) : null}
 
       <label className="flex flex-col gap-2 text-sm text-stone-300">
-        {t.obligation.reason}
+        {copy.reason}
         <input
           name="title"
           required
-          placeholder={t.obligation.reasonPlaceholder}
-          className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+          placeholder={copy.reasonPlaceholder}
+          className={fieldClass}
         />
       </label>
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          {t.obligation.total}
+          {copy.total}
           <input
             name="totalAmount"
             required
             inputMode="decimal"
             placeholder="120.00"
-            className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 font-mono text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            className={`${fieldClass} font-mono`}
           />
         </label>
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          {t.obligation.currency}
+          {copy.currency}
           <input
             name="currency"
             defaultValue={defaultCurrency}
             maxLength={3}
-            className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 uppercase text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            className={`${fieldClass} uppercase`}
           />
         </label>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          {t.obligation.installments}
+          {copy.installments}
           <input
             name="installmentCount"
             type="number"
             min={1}
             max={60}
             defaultValue={1}
-            className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 font-mono text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            className={`${fieldClass} font-mono`}
           />
         </label>
         <label className="flex flex-col gap-2 text-sm text-stone-300">
-          {t.obligation.firstDue}
+          {copy.firstDue}
           <input
             name="firstDueDate"
             type="date"
             required
             defaultValue={today}
-            className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2.5 text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+            className={fieldClass}
           />
         </label>
       </div>
 
-      <p className="text-xs leading-5 text-stone-500">{t.obligation.hint}</p>
+      <p className="text-xs leading-5 text-stone-500">{copy.hint}</p>
 
       {state.error ? (
         <p className="text-sm text-red-300" role="alert">
@@ -131,7 +130,7 @@ export function ObligationForm({
         disabled={pending}
         className="rounded-lg bg-amber-200 px-4 py-2.5 text-sm font-medium text-stone-950 disabled:opacity-60"
       >
-        {pending ? t.obligation.saving : t.obligation.submit}
+        {pending ? copy.saving : copy.submit}
       </button>
     </form>
   );

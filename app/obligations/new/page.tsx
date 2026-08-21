@@ -27,7 +27,7 @@ export default async function NewObligationPage() {
         <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">
           {t.obligation.body}
         </p>
-        <ObligationForm people={people} defaultCurrency={currency} t={t} />
+        <ObligationForm people={people} defaultCurrency={currency} copy={t.obligation} />
       </main>
     </>
   );

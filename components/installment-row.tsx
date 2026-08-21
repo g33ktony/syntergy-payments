@@ -8,6 +8,7 @@ import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
 import { progressFor } from "@/lib/queries";
 import { startOfUtcDay } from "@/lib/installments";
+import { personLabel } from "@/lib/person";
 import type { PaymentMethod } from "@/lib/payment-method";
 
 type RowProps = {
@@ -22,7 +23,7 @@ type RowProps = {
       id: string;
       title: string;
       currency: string;
-      person: { id: string; name: string };
+      person: { id: string; name: string; nickname?: string | null };
       installments: { paidAt: Date | null }[];
     };
   };
@@ -50,7 +51,7 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
             href={`/people/${installment.obligation.person.id}`}
             className="font-medium text-stone-50 hover:text-amber-100"
           >
-            {installment.obligation.person.name}
+            {personLabel(installment.obligation.person)}
           </Link>
           <span className="font-mono text-sm text-amber-100">
             {formatMoney(installment.amount, installment.obligation.currency, tag)}

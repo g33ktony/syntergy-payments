@@ -13,13 +13,17 @@ enum PaymentMethod {
 }
 
 model Person {
-  id           String        @id @default(cuid())
-  name         String
-  phone        String?
-  notes        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  obligations  Obligation[]
+  id                      String         @id @default(cuid())
+  name                    String
+  nickname                String?
+  phone                   String?
+  howKnown                String?
+  preferredPaymentMethod  PaymentMethod?
+  bankClabe               String?
+  notes                   String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  obligations             Obligation[]
 }
 
 model Obligation {

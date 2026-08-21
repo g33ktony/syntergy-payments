@@ -3,6 +3,7 @@ import { getDictionary } from "@/lib/get-dictionary";
 import { localeTag } from "@/lib/i18n";
 import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
+import { personLabel } from "@/lib/person";
 import { getWallet } from "@/lib/queries";
 import Link from "next/link";
 
@@ -88,7 +89,7 @@ export default async function WalletPage() {
                         href={`/people/${item.obligation.person.id}`}
                         className="font-medium text-stone-50 hover:text-amber-100"
                       >
-                        {item.obligation.person.name}
+                        {personLabel(item.obligation.person)}
                       </Link>
                       <p className="mt-1 text-sm text-stone-400">
                         {item.obligation.title}

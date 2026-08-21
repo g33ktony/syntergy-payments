@@ -8,6 +8,7 @@ import { localeTag } from "@/lib/i18n";
 import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
 import { getPersonProfile, progressFor } from "@/lib/queries";
+import { whatsappHref } from "@/lib/phone";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -26,6 +27,7 @@ export default async function PersonPage({
 
   const currency =
     profile.person.obligations[0]?.currency ?? process.env.DEFAULT_CURRENCY ?? "USD";
+  const whatsapp = whatsappHref(profile.person.phone ?? "");
 
   return (
     <>
@@ -43,8 +45,43 @@ export default async function PersonPage({
             <h1 className="font-serif text-4xl text-stone-50">
               {profile.person.name}
             </h1>
-            {profile.person.phone ? (
-              <p className="mt-2 text-sm text-stone-400">{profile.person.phone}</p>
+            {profile.person.nickname ? (
+              <p className="mt-1 text-sm text-amber-100/80">
+                {profile.person.nickname}
+              </p>
+            ) : null}
+            {profile.person.howKnown ? (
+              <p className="mt-2 text-sm text-stone-400">{profile.person.howKnown}</p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-stone-400">
+              {profile.person.phone ? (
+                <span>{profile.person.phone}</span>
+              ) : null}
+              {whatsapp ? (
+                <Link
+                  href={whatsapp}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-amber-100 hover:text-amber-50"
+                >
+                  {t.person.whatsapp}
+                </Link>
+              ) : null}
+            </div>
+            {profile.person.preferredPaymentMethod || profile.person.bankClabe ? (
+              <p className="mt-2 text-sm text-stone-500">
+                {profile.person.preferredPaymentMethod
+                  ? t.method[profile.person.preferredPaymentMethod]
+                  : null}
+                {profile.person.preferredPaymentMethod && profile.person.bankClabe
+                  ? " · "
+                  : null}
+                {profile.person.bankClabe ? (
+                  <span className="font-mono text-stone-300">
+                    {profile.person.bankClabe}
+                  </span>
+                ) : null}
+              </p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -100,9 +137,31 @@ export default async function PersonPage({
           <PersonDetailsForm
             personId={profile.person.id}
             name={profile.person.name}
+            nickname={profile.person.nickname ?? ""}
             phone={profile.person.phone ?? ""}
+            howKnown={profile.person.howKnown ?? ""}
+            preferredPaymentMethod={profile.person.preferredPaymentMethod}
+            bankClabe={profile.person.bankClabe ?? ""}
             notes={profile.person.notes ?? ""}
-            t={t}
+            copy={{
+              name: t.person.name,
+              nickname: t.person.nickname,
+              nicknamePlaceholder: t.person.nicknamePlaceholder,
+              phone: t.person.phone,
+              phonePlaceholder: t.person.phonePlaceholder,
+              howKnown: t.person.howKnown,
+              howKnownPlaceholder: t.person.howKnownPlaceholder,
+              preferredMethod: t.person.preferredMethod,
+              methodUnset: t.person.methodUnset,
+              bankClabe: t.person.bankClabe,
+              bankClabePlaceholder: t.person.bankClabePlaceholder,
+              notes: t.person.notes,
+              notesPlaceholder: t.person.notesPlaceholder,
+              save: t.person.save,
+              saving: t.person.saving,
+              cash: t.method.CASH,
+              transfer: t.method.TRANSFER,
+            }}
           />
         </section>
 
