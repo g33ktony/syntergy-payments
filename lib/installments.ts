@@ -1,3 +1,7 @@
+export function installmentIndexLabel(sequence: number, total: number) {
+  return `${sequence}/${total}`;
+}
+
 export function splitInstallmentAmounts(totalCents: number, count: number) {
   if (count < 1) {
     throw new Error("Installment count must be at least 1");
