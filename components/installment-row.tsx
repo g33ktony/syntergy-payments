@@ -4,10 +4,8 @@ import { MarkPaidButtons } from "@/components/mark-paid-buttons";
 import { deleteObligation } from "@/lib/actions";
 import { getDictionary } from "@/lib/get-dictionary";
 import { localeTag } from "@/lib/i18n";
-import { formatDueDate } from "@/lib/installments";
+import { formatDueDate, installmentIndexLabel, startOfUtcDay } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
-import { progressFor } from "@/lib/queries";
-import { startOfUtcDay } from "@/lib/installments";
 import { personLabel } from "@/lib/person";
 import type { PaymentMethod } from "@/lib/payment-method";
 
@@ -33,7 +31,7 @@ type RowProps = {
 export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
   const { locale, t } = await getDictionary();
   const tag = localeTag(locale);
-  const { paidCount, total } = progressFor(installment.obligation.installments);
+  const total = installment.obligation.installments.length;
   const today = startOfUtcDay();
   const overdue = !installment.paidAt && installment.dueDate < today;
   const methodLabel =
@@ -61,7 +59,7 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
           {installment.obligation.title}
         </p>
         <p className="mt-1 text-xs tracking-wide text-stone-500">
-          {paidCount}/{total}
+          {t.row.installment} {installmentIndexLabel(installment.sequence, total)}
           {" · "}
           {overdue ? (
             <span className="text-red-300">

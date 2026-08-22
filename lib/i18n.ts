@@ -106,6 +106,7 @@ const es = {
     started: "empezó",
   },
   row: {
+    installment: "Abono",
     overdue: "Vencido",
     due: "Vence",
     paid: "Pagado",
@@ -245,6 +246,7 @@ const en: typeof es = {
     started: "started",
   },
   row: {
+    installment: "Installment",
     overdue: "Overdue",
     due: "Due",
     paid: "Paid",
