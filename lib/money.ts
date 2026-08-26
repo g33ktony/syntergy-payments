@@ -14,6 +14,8 @@ export function formatMoney(cents: number, currency: string, locale = "es-MX") {
   }).format(cents / 100);
 }
 
+export const SUPPORTED_CURRENCIES = ["MXN", "USD", "COP"] as const;
+
 export function defaultCurrency() {
-  return process.env.DEFAULT_CURRENCY || "USD";
+  return process.env.DEFAULT_CURRENCY || "MXN";
 }
