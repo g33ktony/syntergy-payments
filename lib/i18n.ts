@@ -30,9 +30,8 @@ const es = {
     register: "Registrar un pago",
     overdue: "Vencidos",
     upcoming: "Próximos",
-    recent: "Pagados recientemente",
     nothingDue: "Nada pendiente por vencer.",
-    noPaid: "Aún no hay pagos registrados.",
+    historyHint: "¿Buscas los pagos ya realizados? Revisa el historial en",
     emptyTitle: "No hay deudas en el libro",
     emptyBody:
       "Registra la primera obligación: quién te debe, por qué, y si pagará en abonos.",
@@ -119,6 +118,7 @@ const es = {
     deleting: "Eliminando…",
     deleteObligationConfirm: (title: string) =>
       `¿Eliminar «${title}» y todos sus abonos?`,
+    moreInstallments: (n: number) => `Ver ${n} abono${n === 1 ? "" : "s"} más`,
   },
   paid: {
     cash: "Efectivo",
@@ -202,9 +202,8 @@ const en: typeof es = {
     register: "Register a payment",
     overdue: "Overdue",
     upcoming: "Upcoming",
-    recent: "Recently paid",
     nothingDue: "Nothing due next.",
-    noPaid: "No payments recorded yet.",
+    historyHint: "Looking for past payments? Check the history in",
     emptyTitle: "No debts on the books",
     emptyBody:
       "Register the first obligation: who owes you, what it was for, and whether they will pay in installments.",
@@ -292,6 +291,7 @@ const en: typeof es = {
     deleting: "Deleting…",
     deleteObligationConfirm: (title: string) =>
       `Delete “${title}” and all of its installments?`,
+    moreInstallments: (n: number) => `See ${n} more installment${n === 1 ? "" : "s"}`,
   },
   paid: {
     cash: "Cash",

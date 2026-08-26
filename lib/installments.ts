@@ -36,3 +36,25 @@ export function formatDueDate(date: Date, locale = "es-MX") {
     timeZone: "UTC",
   }).format(date);
 }
+
+export function groupBySequence<T>(
+  items: T[],
+  groupKey: (item: T) => string,
+  sequenceOf: (item: T) => number,
+): { primary: T; rest: T[] }[] {
+  const order: string[] = [];
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = groupKey(item);
+    if (!groups.has(key)) {
+      order.push(key);
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(item);
+  }
+  return order.map((key) => {
+    const list = groups.get(key)!.sort((a, b) => sequenceOf(a) - sequenceOf(b));
+    const [primary, ...rest] = list;
+    return { primary, rest };
+  });
+}

@@ -1,12 +1,13 @@
 import { AppHeader } from "@/components/app-header";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
-import { InstallmentRow } from "@/components/installment-row";
+import { InstallmentGroup } from "@/components/installment-group";
+import { InstallmentRow, type RowProps } from "@/components/installment-row";
 import { PersonDetailsForm } from "@/components/person-details-form";
 import { deleteObligation, deletePerson } from "@/lib/actions";
 import { getDictionary } from "@/lib/get-dictionary";
 import type { Dictionary } from "@/lib/i18n";
 import { localeTag } from "@/lib/i18n";
-import { formatDueDate } from "@/lib/installments";
+import { formatDueDate, groupBySequence } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
 import { getPersonProfile, progressFor } from "@/lib/queries";
 import { whatsappHref } from "@/lib/phone";
@@ -15,6 +16,7 @@ import { notFound } from "next/navigation";
 
 type PersonProfile = NonNullable<Awaited<ReturnType<typeof getPersonProfile>>>;
 type ObligationSummary = PersonProfile["person"]["obligations"][number];
+type UpcomingEntry = PersonProfile["upcoming"][number];
 
 export default async function PersonPage({
   params,
@@ -38,6 +40,21 @@ export default async function PersonPage({
   const settledObligations = profile.person.obligations.filter(
     (obligation) => progressFor(obligation.installments).paidCount > 0,
   );
+  const upcomingGroups = groupBySequence(
+    profile.upcoming,
+    (entry) => entry.obligation.id,
+    (entry) => entry.installment.sequence,
+  );
+  const toRowInstallment = (entry: UpcomingEntry): RowProps["installment"] => ({
+    ...entry.installment,
+    obligation: {
+      id: entry.obligation.id,
+      title: entry.obligation.title,
+      currency: entry.obligation.currency,
+      person: profile.person,
+      installments: entry.obligation.installments,
+    },
+  });
 
   return (
     <>
@@ -179,23 +196,15 @@ export default async function PersonPage({
           <h2 className="text-sm font-medium tracking-wide text-stone-400 uppercase">
             {t.person.upcoming}
           </h2>
-          {profile.upcoming.length === 0 ? (
+          {upcomingGroups.length === 0 ? (
             <p className="mt-3 text-sm text-stone-500">{t.person.noneUpcoming}</p>
           ) : (
             <ul className="mt-2">
-              {profile.upcoming.map(({ installment, obligation }) => (
-                <InstallmentRow
-                  key={installment.id}
-                  installment={{
-                    ...installment,
-                    obligation: {
-                      id: obligation.id,
-                      title: obligation.title,
-                      currency: obligation.currency,
-                      person: profile.person,
-                      installments: obligation.installments,
-                    },
-                  }}
+              {upcomingGroups.map(({ primary, rest }) => (
+                <InstallmentGroup
+                  key={primary.installment.id}
+                  primary={toRowInstallment(primary)}
+                  rest={rest.map(toRowInstallment)}
                 />
               ))}
             </ul>
