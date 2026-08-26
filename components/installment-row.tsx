@@ -101,8 +101,21 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
           installmentAmount={installment.amount}
           currency={installment.obligation.currency}
           locale={tag}
-          reasons={installment.reasons}
-          copy={t.reasons}
+          reasons={installment.reasons.map((reason) => ({
+            ...reason,
+            removeConfirm: t.reasons.removeConfirm(reason.label),
+          }))}
+          copy={{
+            title: t.reasons.title,
+            noReason: t.reasons.noReason,
+            remaining: t.reasons.remaining,
+            fullyAllocated: t.reasons.fullyAllocated,
+            labelPlaceholder: t.reasons.labelPlaceholder,
+            amountPlaceholder: t.reasons.amountPlaceholder,
+            add: t.reasons.add,
+            adding: t.reasons.adding,
+            remove: t.reasons.remove,
+          }}
           deletingLabel={t.row.deleting}
         />
       </div>

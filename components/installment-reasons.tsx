@@ -26,8 +26,8 @@ export function InstallmentReasons({
   installmentAmount: number;
   currency: string;
   locale: string;
-  reasons: { id: string; label: string; amount: number }[];
-  copy: Dictionary["reasons"];
+  reasons: { id: string; label: string; amount: number; removeConfirm: string }[];
+  copy: Omit<Dictionary["reasons"], "removeConfirm">;
   deletingLabel: string;
 }) {
   const [state, action, pending] = useActionState(
@@ -55,7 +55,7 @@ export function InstallmentReasons({
               <ConfirmDeleteButton
                 label={copy.remove}
                 pendingLabel={deletingLabel}
-                confirmMessage={copy.removeConfirm(reason.label)}
+                confirmMessage={reason.removeConfirm}
                 onDelete={deleteInstallmentReason.bind(null, reason.id)}
               />
             </span>
