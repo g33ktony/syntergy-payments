@@ -51,8 +51,20 @@ model Installment {
   paidAt         DateTime?
   paymentMethod  PaymentMethod?
   createdAt      DateTime        @default(now())
+  reasons        InstallmentReason[]
 
   @@unique([obligationId, sequence])
   @@index([dueDate])
   @@index([paidAt])
+}
+
+model InstallmentReason {
+  id            String      @id @default(cuid())
+  installmentId String
+  installment   Installment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+  label         String
+  amount        Int
+  createdAt     DateTime    @default(now())
+
+  @@index([installmentId])
 }

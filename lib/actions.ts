@@ -10,6 +10,7 @@ import {
 } from "@/lib/installments";
 import { defaultCurrency, parseAmountToCents } from "@/lib/money";
 import { isPaymentMethod, type PaymentMethod } from "@/lib/payment-method";
+import { remainingAmount } from "@/lib/reasons";
 
 export type ActionState = {
   error?: string;
@@ -165,6 +166,59 @@ export async function markInstallmentPaid(
     include: { obligation: true },
   });
   refreshPaths(installment.obligation.personId);
+}
+
+export async function addInstallmentReason(
+  installmentId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { t } = await getDictionary();
+  const label = String(formData.get("label") || "").trim();
+  const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
+
+  if (!label) {
+    return { error: t.errors.reasonLabelRequired };
+  }
+  if (!amountCents || amountCents <= 0) {
+    return { error: t.errors.amountInvalid };
+  }
+
+  const installment = await prisma.installment.findUnique({
+    where: { id: installmentId },
+    include: { reasons: true, obligation: true },
+  });
+  if (!installment) {
+    return { error: t.errors.installmentMissing };
+  }
+
+  const remaining = remainingAmount(installment.amount, installment.reasons);
+  if (remaining <= 0) {
+    return { error: t.errors.reasonsFull };
+  }
+  if (amountCents > remaining) {
+    return { error: t.errors.reasonExceedsRemaining };
+  }
+
+  await prisma.installmentReason.create({
+    data: { installmentId, label, amount: amountCents },
+  });
+
+  refreshPaths(installment.obligation.personId);
+  return {};
+}
+
+export async function deleteInstallmentReason(reasonId: string) {
+  const reason = await prisma.installmentReason.findUnique({
+    where: { id: reasonId },
+    include: { installment: { include: { obligation: true } } },
+  });
+  if (!reason) {
+    return;
+  }
+
+  await prisma.installmentReason.delete({ where: { id: reasonId } });
+  refreshPaths(reason.installment.obligation.personId);
 }
 
 export async function deleteObligation(obligationId: string) {

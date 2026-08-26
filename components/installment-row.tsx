@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { InstallmentReasons } from "@/components/installment-reasons";
 import { MarkPaidButtons } from "@/components/mark-paid-buttons";
 import { deleteObligation } from "@/lib/actions";
 import { getDictionary } from "@/lib/get-dictionary";
@@ -17,6 +18,7 @@ type RowProps = {
     dueDate: Date;
     paidAt: Date | null;
     paymentMethod?: PaymentMethod | null;
+    reasons: { id: string; label: string; amount: number }[];
     obligation: {
       id: string;
       title: string;
@@ -91,6 +93,17 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
           pendingLabel={t.row.deleting}
           confirmMessage={t.row.deleteObligationConfirm(installment.obligation.title)}
           onDelete={deleteObligation.bind(null, installment.obligation.id)}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <InstallmentReasons
+          installmentId={installment.id}
+          installmentAmount={installment.amount}
+          currency={installment.obligation.currency}
+          locale={tag}
+          reasons={installment.reasons}
+          copy={t.reasons}
+          deletingLabel={t.row.deleting}
         />
       </div>
     </li>

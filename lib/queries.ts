@@ -8,6 +8,7 @@ const installmentInclude = {
       installments: { orderBy: { sequence: "asc" as const } },
     },
   },
+  reasons: { orderBy: { createdAt: "asc" as const } },
 };
 
 export type InstallmentWithObligation = Awaited<
@@ -44,7 +45,10 @@ export async function getPersonProfile(id: string) {
       obligations: {
         orderBy: { createdAt: "desc" },
         include: {
-          installments: { orderBy: { sequence: "asc" } },
+          installments: {
+            orderBy: { sequence: "asc" },
+            include: { reasons: { orderBy: { createdAt: "asc" } } },
+          },
         },
       },
     },
