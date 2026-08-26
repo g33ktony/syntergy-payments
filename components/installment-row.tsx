@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/money";
 import { personLabel } from "@/lib/person";
 import type { PaymentMethod } from "@/lib/payment-method";
 
-type RowProps = {
+export type RowProps = {
   installment: {
     id: string;
     sequence: number;
@@ -32,6 +32,14 @@ type RowProps = {
 };
 
 export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
+  return (
+    <li className="border-b border-stone-800 py-4 last:border-b-0">
+      <InstallmentRowBody installment={installment} showPaidAt={showPaidAt} />
+    </li>
+  );
+}
+
+export async function InstallmentRowBody({ installment, showPaidAt }: RowProps) {
   const { locale, t } = await getDictionary();
   const tag = localeTag(locale);
   const total = installment.obligation.installments.length;
@@ -45,7 +53,7 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
         : t.method.unknown;
 
   return (
-    <li className="grid grid-cols-1 gap-3 border-b border-stone-800 py-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
       <div>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <Link
@@ -134,6 +142,6 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
           deletingLabel={t.row.deleting}
         />
       </div>
-    </li>
+    </div>
   );
 }

@@ -23,15 +23,6 @@ export async function getUpcomingInstallments() {
   });
 }
 
-export async function getRecentPaidInstallments() {
-  return prisma.installment.findMany({
-    where: { paidAt: { not: null } },
-    orderBy: { paidAt: "desc" },
-    take: 12,
-    include: installmentInclude,
-  });
-}
-
 export async function getPeople() {
   return prisma.person.findMany({
     orderBy: { name: "asc" },

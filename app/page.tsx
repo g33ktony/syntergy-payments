@@ -1,20 +1,27 @@
 import { AppHeader } from "@/components/app-header";
-import { InstallmentRow } from "@/components/installment-row";
+import { InstallmentGroup } from "@/components/installment-group";
 import { getDictionary } from "@/lib/get-dictionary";
-import { startOfUtcDay } from "@/lib/installments";
-import { getRecentPaidInstallments, getUpcomingInstallments } from "@/lib/queries";
+import { groupBySequence, startOfUtcDay } from "@/lib/installments";
+import { getUpcomingInstallments } from "@/lib/queries";
 import Link from "next/link";
 import type { Dictionary } from "@/lib/i18n";
 
 export default async function DashboardPage() {
   const { t } = await getDictionary();
-  const [upcoming, recent] = await Promise.all([
-    getUpcomingInstallments(),
-    getRecentPaidInstallments(),
-  ]);
+  const upcoming = await getUpcomingInstallments();
   const today = startOfUtcDay();
   const overdue = upcoming.filter((item) => item.dueDate < today);
   const dueSoon = upcoming.filter((item) => item.dueDate >= today);
+  const overdueGroups = groupBySequence(
+    overdue,
+    (item) => item.obligation.id,
+    (item) => item.sequence,
+  );
+  const dueSoonGroups = groupBySequence(
+    dueSoon,
+    (item) => item.obligation.id,
+    (item) => item.sequence,
+  );
 
   return (
     <>
@@ -33,18 +40,18 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {upcoming.length === 0 && recent.length === 0 ? (
+        {upcoming.length === 0 ? (
           <EmptyState t={t} />
         ) : (
           <div className="mt-10 grid gap-10">
-            {overdue.length > 0 ? (
+            {overdueGroups.length > 0 ? (
               <section>
                 <h2 className="text-sm font-medium tracking-wide text-red-300 uppercase">
                   {t.dashboard.overdue}
                 </h2>
                 <ul className="mt-2">
-                  {overdue.map((installment) => (
-                    <InstallmentRow key={installment.id} installment={installment} />
+                  {overdueGroups.map(({ primary, rest }) => (
+                    <InstallmentGroup key={primary.id} primary={primary} rest={rest} />
                   ))}
                 </ul>
               </section>
@@ -54,35 +61,23 @@ export default async function DashboardPage() {
               <h2 className="text-sm font-medium tracking-wide text-stone-400 uppercase">
                 {t.dashboard.upcoming}
               </h2>
-              {dueSoon.length === 0 ? (
+              {dueSoonGroups.length === 0 ? (
                 <p className="mt-3 text-sm text-stone-500">{t.dashboard.nothingDue}</p>
               ) : (
                 <ul className="mt-2">
-                  {dueSoon.map((installment) => (
-                    <InstallmentRow key={installment.id} installment={installment} />
+                  {dueSoonGroups.map(({ primary, rest }) => (
+                    <InstallmentGroup key={primary.id} primary={primary} rest={rest} />
                   ))}
                 </ul>
               )}
             </section>
 
-            <section>
-              <h2 className="text-sm font-medium tracking-wide text-stone-400 uppercase">
-                {t.dashboard.recent}
-              </h2>
-              {recent.length === 0 ? (
-                <p className="mt-3 text-sm text-stone-500">{t.dashboard.noPaid}</p>
-              ) : (
-                <ul className="mt-2">
-                  {recent.map((installment) => (
-                    <InstallmentRow
-                      key={installment.id}
-                      installment={installment}
-                      showPaidAt
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
+            <p className="text-sm text-stone-500">
+              {t.dashboard.historyHint}{" "}
+              <Link href="/wallet" className="text-amber-100 hover:text-amber-50">
+                {t.nav.wallet}
+              </Link>
+            </p>
           </div>
         )}
       </main>
