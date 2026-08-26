@@ -73,6 +73,8 @@ export function InstallmentReasons({
           {buckets.map((bucket) => {
             const isUnassigned = bucket.id === UNASSIGNED_BUCKET_ID;
             const isPaid = bucket.paidAmount >= bucket.amount;
+            const isPartial = bucket.paidAmount > 0 && !isPaid;
+            const owedForBucket = bucket.amount - bucket.paidAmount;
             const toggleAction = isUnassigned
               ? toggleUnassignedPaid.bind(null, installmentId, !isPaid)
               : toggleReasonPaid.bind(null, bucket.id, !isPaid);
@@ -89,16 +91,23 @@ export function InstallmentReasons({
                     className={
                       isPaid
                         ? "rounded-full bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300"
-                        : "rounded-full bg-stone-700/40 px-2 py-0.5 text-xs text-stone-400"
+                        : isPartial
+                          ? "rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-200"
+                          : "rounded-full bg-stone-700/40 px-2 py-0.5 text-xs text-stone-400"
                     }
                   >
-                    {isPaid ? copy.paidTag : copy.pendingTag}
+                    {isPaid ? copy.paidTag : isPartial ? copy.partialTag : copy.pendingTag}
                   </span>
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="font-mono text-stone-300">
                     {formatMoney(bucket.amount, currency, locale)}
                   </span>
+                  {isPartial ? (
+                    <span className="font-mono text-xs text-amber-200">
+                      {copy.owes} {formatMoney(owedForBucket, currency, locale)}
+                    </span>
+                  ) : null}
                   <form action={toggleAction}>
                     <button
                       type="submit"

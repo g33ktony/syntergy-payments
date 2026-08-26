@@ -122,6 +122,8 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
             markPending: t.reasons.markPending,
             paidTag: t.reasons.paidTag,
             pendingTag: t.reasons.pendingTag,
+            partialTag: t.reasons.partialTag,
+            owes: t.reasons.owes,
             covered: t.reasons.covered,
             abonoTitle: t.reasons.abonoTitle,
             abonoMethodUnset: t.reasons.abonoMethodUnset,
