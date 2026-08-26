@@ -51,6 +51,7 @@ model Installment {
   paidAt         DateTime?
   paymentMethod  PaymentMethod?
   createdAt      DateTime        @default(now())
+  unassignedPaidAmount Int       @default(0)
   reasons        InstallmentReason[]
 
   @@unique([obligationId, sequence])
@@ -64,6 +65,7 @@ model InstallmentReason {
   installment   Installment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
   label         String
   amount        Int
+  paidAmount    Int         @default(0)
   createdAt     DateTime    @default(now())
 
   @@index([installmentId])
