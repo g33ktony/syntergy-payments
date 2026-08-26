@@ -128,6 +128,7 @@ const es = {
   },
   reasons: {
     title: "Motivos",
+    toggle: "Motivos",
     noReason: "Sin motivo",
     remaining: "Sin asignar",
     fullyAllocated: "Ya se asignó el total a motivos.",
@@ -137,6 +138,15 @@ const es = {
     adding: "Agregando…",
     remove: "Quitar",
     removeConfirm: (label: string) => `¿Quitar el motivo «${label}»?`,
+    markPaid: "Marcar pagado",
+    markPending: "Marcar pendiente",
+    paidTag: "Pagado",
+    pendingTag: "Pendiente",
+    covered: "cubierto",
+    abonoTitle: "Registrar abono",
+    abonoMethodUnset: "Sin especificar",
+    abonoSubmit: "Registrar abono",
+    abonoSubmitting: "Registrando…",
   },
   errors: {
     nameRequired: "El nombre es obligatorio.",
@@ -154,6 +164,8 @@ const es = {
     installmentMissing: "No se encontró ese abono.",
     reasonsFull: "Ya se asignó todo el monto a motivos.",
     reasonExceedsRemaining: "Ese monto supera lo que falta por asignar.",
+    abonoFull: "Este abono ya está completamente cubierto.",
+    abonoExceedsOwed: "Ese monto supera lo que falta por cubrir.",
   },
 };
 
@@ -284,6 +296,7 @@ const en: typeof es = {
   },
   reasons: {
     title: "Reasons",
+    toggle: "Reasons",
     noReason: "No reason",
     remaining: "Unassigned",
     fullyAllocated: "The full amount is already assigned to reasons.",
@@ -293,6 +306,15 @@ const en: typeof es = {
     adding: "Adding…",
     remove: "Remove",
     removeConfirm: (label: string) => `Remove the reason "${label}"?`,
+    markPaid: "Mark paid",
+    markPending: "Mark pending",
+    paidTag: "Paid",
+    pendingTag: "Pending",
+    covered: "covered",
+    abonoTitle: "Record a payment",
+    abonoMethodUnset: "Unspecified",
+    abonoSubmit: "Record payment",
+    abonoSubmitting: "Recording…",
   },
   errors: {
     nameRequired: "Name is required.",
@@ -310,6 +332,8 @@ const en: typeof es = {
     installmentMissing: "That installment was not found.",
     reasonsFull: "The full amount is already assigned to reasons.",
     reasonExceedsRemaining: "That amount is more than what is left to assign.",
+    abonoFull: "This installment is already fully covered.",
+    abonoExceedsOwed: "That amount is more than what is left to cover.",
   },
 };
 

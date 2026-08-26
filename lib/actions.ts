@@ -10,7 +10,14 @@ import {
 } from "@/lib/installments";
 import { defaultCurrency, parseAmountToCents } from "@/lib/money";
 import { isPaymentMethod, type PaymentMethod } from "@/lib/payment-method";
-import { remainingAmount } from "@/lib/reasons";
+import {
+  buildBuckets,
+  distributeAbono,
+  remainingAmount,
+  totalPaid,
+  UNASSIGNED_BUCKET_ID,
+} from "@/lib/reasons";
+import type { Prisma } from "@prisma/client";
 
 export type ActionState = {
   error?: string;
@@ -160,12 +167,62 @@ export async function markInstallmentPaid(
     throw new Error(t.errors.paymentMethodRequired);
   }
 
-  const installment = await prisma.installment.update({
+  const installment = await prisma.installment.findUnique({
     where: { id: installmentId },
-    data: { paidAt: new Date(), paymentMethod: method },
-    include: { obligation: true },
+    include: { reasons: true, obligation: true },
   });
+  if (!installment) {
+    throw new Error(t.errors.installmentMissing);
+  }
+
+  const unassigned = remainingAmount(installment.amount, installment.reasons);
+
+  await prisma.$transaction([
+    prisma.installment.update({
+      where: { id: installmentId },
+      data: {
+        paidAt: new Date(),
+        paymentMethod: method,
+        unassignedPaidAmount: unassigned,
+      },
+    }),
+    ...installment.reasons.map((reason) =>
+      prisma.installmentReason.update({
+        where: { id: reason.id },
+        data: { paidAmount: reason.amount },
+      }),
+    ),
+  ]);
+
   refreshPaths(installment.obligation.personId);
+}
+
+// Marks the installment as fully paid once every bucket (named reasons plus
+// whatever is unassigned) has been covered. Once paidAt is set it is never
+// cleared here: motivo edits after that point are informational only.
+async function syncInstallmentPaidState(
+  tx: Prisma.TransactionClient,
+  installmentId: string,
+  method: PaymentMethod | null,
+) {
+  const installment = await tx.installment.findUniqueOrThrow({
+    where: { id: installmentId },
+    include: { reasons: true },
+  });
+  if (installment.paidAt) {
+    return;
+  }
+
+  const paidSoFar =
+    installment.reasons.reduce((sum, reason) => sum + reason.paidAmount, 0) +
+    installment.unassignedPaidAmount;
+
+  if (paidSoFar >= installment.amount) {
+    await tx.installment.update({
+      where: { id: installmentId },
+      data: { paidAt: new Date(), paymentMethod: method },
+    });
+  }
 }
 
 export async function addInstallmentReason(
@@ -200,8 +257,23 @@ export async function addInstallmentReason(
     return { error: t.errors.reasonExceedsRemaining };
   }
 
-  await prisma.installmentReason.create({
-    data: { installmentId, label, amount: amountCents },
+  // Carving a new reason out of the unassigned bucket can leave that bucket
+  // smaller than what was already marked paid on it; move the overflow onto
+  // the new reason so no bucket ever shows more paid than it's worth.
+  const newUnassignedAmount = remaining - amountCents;
+  const overflow = Math.max(installment.unassignedPaidAmount - newUnassignedAmount, 0);
+
+  await prisma.$transaction(async (tx) => {
+    const created = await tx.installmentReason.create({
+      data: { installmentId, label, amount: amountCents, paidAmount: overflow },
+    });
+    if (overflow > 0) {
+      await tx.installment.update({
+        where: { id: installmentId },
+        data: { unassignedPaidAmount: newUnassignedAmount },
+      });
+    }
+    return created;
   });
 
   refreshPaths(installment.obligation.personId);
@@ -217,8 +289,121 @@ export async function deleteInstallmentReason(reasonId: string) {
     return;
   }
 
-  await prisma.installmentReason.delete({ where: { id: reasonId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.installmentReason.delete({ where: { id: reasonId } });
+    if (reason.paidAmount > 0) {
+      await tx.installment.update({
+        where: { id: reason.installmentId },
+        data: { unassignedPaidAmount: { increment: reason.paidAmount } },
+      });
+    }
+  });
+
   refreshPaths(reason.installment.obligation.personId);
+}
+
+export async function toggleReasonPaid(reasonId: string, paid: boolean) {
+  const reason = await prisma.installmentReason.findUnique({
+    where: { id: reasonId },
+    include: { installment: { include: { obligation: true } } },
+  });
+  if (!reason) {
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.installmentReason.update({
+      where: { id: reasonId },
+      data: { paidAmount: paid ? reason.amount : 0 },
+    });
+    await syncInstallmentPaidState(tx, reason.installmentId, null);
+  });
+
+  refreshPaths(reason.installment.obligation.personId);
+}
+
+export async function toggleUnassignedPaid(installmentId: string, paid: boolean) {
+  const installment = await prisma.installment.findUnique({
+    where: { id: installmentId },
+    include: { reasons: true, obligation: true },
+  });
+  if (!installment) {
+    return;
+  }
+
+  const unassigned = remainingAmount(installment.amount, installment.reasons);
+  if (unassigned <= 0) {
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.installment.update({
+      where: { id: installmentId },
+      data: { unassignedPaidAmount: paid ? unassigned : 0 },
+    });
+    await syncInstallmentPaidState(tx, installmentId, null);
+  });
+
+  refreshPaths(installment.obligation.personId);
+}
+
+export async function registerInstallmentAbono(
+  installmentId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { t } = await getDictionary();
+  const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
+  const methodRaw = String(formData.get("method") || "");
+  const method = isPaymentMethod(methodRaw) ? methodRaw : null;
+
+  if (!amountCents || amountCents <= 0) {
+    return { error: t.errors.amountInvalid };
+  }
+
+  const installment = await prisma.installment.findUnique({
+    where: { id: installmentId },
+    include: { reasons: { orderBy: { createdAt: "asc" } }, obligation: true },
+  });
+  if (!installment) {
+    return { error: t.errors.installmentMissing };
+  }
+
+  const buckets = buildBuckets(
+    installment.amount,
+    installment.reasons,
+    installment.unassignedPaidAmount,
+    t.reasons.noReason,
+  );
+  const owed = installment.amount - totalPaid(buckets);
+  if (owed <= 0) {
+    return { error: t.errors.abonoFull };
+  }
+  if (amountCents > owed) {
+    return { error: t.errors.abonoExceedsOwed };
+  }
+
+  const updated = distributeAbono(buckets, amountCents);
+
+  await prisma.$transaction(async (tx) => {
+    for (const bucket of updated) {
+      if (bucket.id === UNASSIGNED_BUCKET_ID) {
+        await tx.installment.update({
+          where: { id: installmentId },
+          data: { unassignedPaidAmount: bucket.paidAmount },
+        });
+      } else {
+        await tx.installmentReason.update({
+          where: { id: bucket.id },
+          data: { paidAmount: bucket.paidAmount },
+        });
+      }
+    }
+    await syncInstallmentPaidState(tx, installmentId, method);
+  });
+
+  refreshPaths(installment.obligation.personId);
+  return {};
 }
 
 export async function deleteObligation(obligationId: string) {

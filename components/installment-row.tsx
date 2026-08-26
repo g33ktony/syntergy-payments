@@ -18,7 +18,8 @@ type RowProps = {
     dueDate: Date;
     paidAt: Date | null;
     paymentMethod?: PaymentMethod | null;
-    reasons: { id: string; label: string; amount: number }[];
+    reasons: { id: string; label: string; amount: number; paidAmount: number }[];
+    unassignedPaidAmount: number;
     obligation: {
       id: string;
       title: string;
@@ -105,8 +106,10 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
             ...reason,
             removeConfirm: t.reasons.removeConfirm(reason.label),
           }))}
+          unassignedPaidAmount={installment.unassignedPaidAmount}
           copy={{
             title: t.reasons.title,
+            toggle: t.reasons.toggle,
             noReason: t.reasons.noReason,
             remaining: t.reasons.remaining,
             fullyAllocated: t.reasons.fullyAllocated,
@@ -115,7 +118,17 @@ export async function InstallmentRow({ installment, showPaidAt }: RowProps) {
             add: t.reasons.add,
             adding: t.reasons.adding,
             remove: t.reasons.remove,
+            markPaid: t.reasons.markPaid,
+            markPending: t.reasons.markPending,
+            paidTag: t.reasons.paidTag,
+            pendingTag: t.reasons.pendingTag,
+            covered: t.reasons.covered,
+            abonoTitle: t.reasons.abonoTitle,
+            abonoMethodUnset: t.reasons.abonoMethodUnset,
+            abonoSubmit: t.reasons.abonoSubmit,
+            abonoSubmitting: t.reasons.abonoSubmitting,
           }}
+          methodLabels={{ CASH: t.method.CASH, TRANSFER: t.method.TRANSFER }}
           deletingLabel={t.row.deleting}
         />
       </div>
