@@ -4,6 +4,7 @@ import { InstallmentRow } from "@/components/installment-row";
 import { PersonDetailsForm } from "@/components/person-details-form";
 import { deleteObligation, deletePerson } from "@/lib/actions";
 import { getDictionary } from "@/lib/get-dictionary";
+import type { Dictionary } from "@/lib/i18n";
 import { localeTag } from "@/lib/i18n";
 import { formatDueDate } from "@/lib/installments";
 import { formatMoney } from "@/lib/money";
@@ -11,6 +12,9 @@ import { getPersonProfile, progressFor } from "@/lib/queries";
 import { whatsappHref } from "@/lib/phone";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+type PersonProfile = NonNullable<Awaited<ReturnType<typeof getPersonProfile>>>;
+type ObligationSummary = PersonProfile["person"]["obligations"][number];
 
 export default async function PersonPage({
   params,
@@ -28,6 +32,12 @@ export default async function PersonPage({
   const currency =
     profile.person.obligations[0]?.currency ?? process.env.DEFAULT_CURRENCY ?? "USD";
   const whatsapp = whatsappHref(profile.person.phone ?? "");
+  const pendingObligations = profile.person.obligations.filter(
+    (obligation) => progressFor(obligation.installments).paidCount === 0,
+  );
+  const settledObligations = profile.person.obligations.filter(
+    (obligation) => progressFor(obligation.installments).paidCount > 0,
+  );
 
   return (
     <>
@@ -222,48 +232,87 @@ export default async function PersonPage({
 
         <section className="mt-10">
           <h2 className="text-sm font-medium tracking-wide text-stone-400 uppercase">
-            {t.person.obligations}
+            {t.person.obligationsPending}
           </h2>
-          {profile.person.obligations.length === 0 ? (
-            <p className="mt-3 text-sm text-stone-500">{t.person.noneObligations}</p>
+          {pendingObligations.length === 0 ? (
+            <p className="mt-3 text-sm text-stone-500">{t.person.noneObligationsPending}</p>
           ) : (
-            <ul className="mt-3 divide-y divide-stone-800">
-              {profile.person.obligations.map((obligation) => {
-                const { paidCount, total } = progressFor(obligation.installments);
-                return (
-                  <li
-                    key={obligation.id}
-                    className="flex flex-wrap items-start justify-between gap-3 py-4"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-stone-50">{obligation.title}</p>
-                        <p className="font-mono text-sm text-stone-300">
-                          {formatMoney(obligation.totalAmount, obligation.currency, tag)}
-                        </p>
-                      </div>
-                      <p className="mt-1 text-xs text-stone-500">
-                        {t.person.paidOf(paidCount, total)} · {t.person.started}{" "}
-                        {formatDueDate(
-                          obligation.installments[0]?.dueDate ?? obligation.createdAt,
-                          tag,
-                        )}
-                      </p>
-                    </div>
-                    <ConfirmDeleteButton
-                      label={t.row.delete}
-                      pendingLabel={t.row.deleting}
-                      confirmMessage={t.row.deleteObligationConfirm(obligation.title)}
-                      onDelete={deleteObligation.bind(null, obligation.id)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+            <ObligationList
+              obligations={pendingObligations}
+              locale={tag}
+              t={t}
+            />
+          )}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-sm font-medium tracking-wide text-stone-400 uppercase">
+            {t.person.obligationsPaid}
+          </h2>
+          {settledObligations.length === 0 ? (
+            <p className="mt-3 text-sm text-stone-500">{t.person.noneObligationsPaid}</p>
+          ) : (
+            <ObligationList
+              obligations={settledObligations}
+              locale={tag}
+              t={t}
+            />
           )}
         </section>
       </main>
     </>
+  );
+}
+
+function ObligationList({
+  obligations,
+  locale,
+  t,
+}: {
+  obligations: ObligationSummary[];
+  locale: string;
+  t: Dictionary;
+}) {
+  return (
+    <ul className="mt-3 divide-y divide-stone-800">
+      {obligations.map((obligation) => {
+        const { paidCount, total } = progressFor(obligation.installments);
+        const isPartial = paidCount > 0 && paidCount < total;
+        return (
+          <li
+            key={obligation.id}
+            className="flex flex-wrap items-start justify-between gap-3 py-4"
+          >
+            <div>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <p className="text-stone-50">{obligation.title}</p>
+                {isPartial ? (
+                  <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-200">
+                    {t.person.partialTag}
+                  </span>
+                ) : null}
+                <p className="ml-auto font-mono text-sm text-stone-300">
+                  {formatMoney(obligation.totalAmount, obligation.currency, locale)}
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-stone-500">
+                {t.person.paidOf(paidCount, total)} · {t.person.started}{" "}
+                {formatDueDate(
+                  obligation.installments[0]?.dueDate ?? obligation.createdAt,
+                  locale,
+                )}
+              </p>
+            </div>
+            <ConfirmDeleteButton
+              label={t.row.delete}
+              pendingLabel={t.row.deleting}
+              confirmMessage={t.row.deleteObligationConfirm(obligation.title)}
+              onDelete={deleteObligation.bind(null, obligation.id)}
+            />
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

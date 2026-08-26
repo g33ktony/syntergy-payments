@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createObligation, type ActionState } from "@/lib/actions";
 import type { Dictionary } from "@/lib/i18n";
+import { SUPPORTED_CURRENCIES } from "@/lib/money";
 import { personLabel } from "@/lib/person";
 
 type Person = { id: string; name: string; nickname: string | null };
@@ -84,12 +85,17 @@ export function ObligationForm({
         </label>
         <label className="flex flex-col gap-2 text-sm text-stone-300">
           {copy.currency}
-          <input
+          <select
             name="currency"
             defaultValue={defaultCurrency}
-            maxLength={3}
-            className={`${fieldClass} uppercase`}
-          />
+            className={fieldClass}
+          >
+            {SUPPORTED_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 
