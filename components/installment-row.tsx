@@ -51,6 +51,8 @@ export async function InstallmentRowBody({ installment, showPaidAt }: RowProps) 
       : installment.paymentMethod === "TRANSFER"
         ? t.method.TRANSFER
         : t.method.unknown;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- removeConfirm is a function; it can't cross into the client component below.
+  const { removeConfirm, ...reasonsCopy } = t.reasons;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -115,29 +117,7 @@ export async function InstallmentRowBody({ installment, showPaidAt }: RowProps) 
             removeConfirm: t.reasons.removeConfirm(reason.label),
           }))}
           unassignedPaidAmount={installment.unassignedPaidAmount}
-          copy={{
-            title: t.reasons.title,
-            toggle: t.reasons.toggle,
-            noReason: t.reasons.noReason,
-            remaining: t.reasons.remaining,
-            fullyAllocated: t.reasons.fullyAllocated,
-            labelPlaceholder: t.reasons.labelPlaceholder,
-            amountPlaceholder: t.reasons.amountPlaceholder,
-            add: t.reasons.add,
-            adding: t.reasons.adding,
-            remove: t.reasons.remove,
-            markPaid: t.reasons.markPaid,
-            markPending: t.reasons.markPending,
-            paidTag: t.reasons.paidTag,
-            pendingTag: t.reasons.pendingTag,
-            partialTag: t.reasons.partialTag,
-            owes: t.reasons.owes,
-            covered: t.reasons.covered,
-            abonoTitle: t.reasons.abonoTitle,
-            abonoMethodUnset: t.reasons.abonoMethodUnset,
-            abonoSubmit: t.reasons.abonoSubmit,
-            abonoSubmitting: t.reasons.abonoSubmitting,
-          }}
+          copy={reasonsCopy}
           methodLabels={{ CASH: t.method.CASH, TRANSFER: t.method.TRANSFER }}
           deletingLabel={t.row.deleting}
         />

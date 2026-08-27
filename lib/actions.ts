@@ -289,6 +289,71 @@ export async function addInstallmentReason(
   return {};
 }
 
+export async function updateInstallmentReason(
+  reasonId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const accountId = await getCurrentAccountId();
+  const { t } = await getDictionary();
+  const label = String(formData.get("label") || "").trim();
+  const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
+
+  if (!label) {
+    return { error: t.errors.reasonLabelRequired };
+  }
+  if (!amountCents || amountCents <= 0) {
+    return { error: t.errors.amountInvalid };
+  }
+
+  const reason = await prisma.installmentReason.findFirst({
+    where: { id: reasonId, installment: { obligation: { person: { accountId } } } },
+    include: { installment: { include: { reasons: true, obligation: true } } },
+  });
+  if (!reason) {
+    return { error: t.errors.installmentMissing };
+  }
+
+  if (amountCents < reason.paidAmount) {
+    return { error: t.errors.reasonBelowPaid };
+  }
+
+  const othersTotal = reason.installment.reasons
+    .filter((item) => item.id !== reasonId)
+    .reduce((sum, item) => sum + item.amount, 0);
+  if (othersTotal + amountCents > reason.installment.amount) {
+    return { error: t.errors.reasonExceedsRemaining };
+  }
+
+  // Growing this reason can shrink the unassigned bucket below what was
+  // already marked paid on it; move that overflow onto this reason (capped
+  // so it never ends up "paid" more than its own new amount).
+  const newUnassignedAmount = reason.installment.amount - (othersTotal + amountCents);
+  const overflow = Math.max(
+    Math.min(
+      reason.installment.unassignedPaidAmount - newUnassignedAmount,
+      amountCents - reason.paidAmount,
+    ),
+    0,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.installmentReason.update({
+      where: { id: reasonId },
+      data: { label, amount: amountCents, paidAmount: reason.paidAmount + overflow },
+    });
+    if (overflow > 0) {
+      await tx.installment.update({
+        where: { id: reason.installmentId },
+        data: { unassignedPaidAmount: newUnassignedAmount },
+      });
+    }
+  });
+
+  refreshPaths(reason.installment.obligation.personId);
+  return {};
+}
+
 export async function deleteInstallmentReason(reasonId: string) {
   const accountId = await getCurrentAccountId();
   const reason = await prisma.installmentReason.findFirst({
@@ -369,6 +434,7 @@ export async function registerInstallmentAbono(
   const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
   const methodRaw = String(formData.get("method") || "");
   const method = isPaymentMethod(methodRaw) ? methodRaw : null;
+  const targetId = String(formData.get("targetId") || "").trim();
 
   if (!amountCents || amountCents <= 0) {
     return { error: t.errors.amountInvalid };
@@ -388,6 +454,41 @@ export async function registerInstallmentAbono(
     installment.unassignedPaidAmount,
     t.reasons.noReason,
   );
+
+  // A specific target bucket: apply the whole abono there instead of
+  // spreading it FIFO across every bucket.
+  if (targetId) {
+    const target = buckets.find((bucket) => bucket.id === targetId);
+    if (!target) {
+      return { error: t.errors.installmentMissing };
+    }
+    const targetOwed = target.amount - target.paidAmount;
+    if (targetOwed <= 0) {
+      return { error: t.errors.abonoFull };
+    }
+    if (amountCents > targetOwed) {
+      return { error: t.errors.abonoExceedsOwed };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (target.id === UNASSIGNED_BUCKET_ID) {
+        await tx.installment.update({
+          where: { id: installmentId },
+          data: { unassignedPaidAmount: target.paidAmount + amountCents },
+        });
+      } else {
+        await tx.installmentReason.update({
+          where: { id: target.id },
+          data: { paidAmount: target.paidAmount + amountCents },
+        });
+      }
+      await syncInstallmentPaidState(tx, installmentId, method);
+    });
+
+    refreshPaths(installment.obligation.personId);
+    return {};
+  }
+
   const owed = installment.amount - totalPaid(buckets);
   if (owed <= 0) {
     return { error: t.errors.abonoFull };

@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   addInstallmentReason,
   deleteInstallmentReason,
   registerInstallmentAbono,
   toggleReasonPaid,
   toggleUnassignedPaid,
+  updateInstallmentReason,
   type ActionState,
 } from "@/lib/actions";
 import type { Dictionary } from "@/lib/i18n";
@@ -51,6 +52,22 @@ export function InstallmentReasons({
     registerInstallmentAbono.bind(null, installmentId),
     initial,
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editState, editAction, editPending] = useActionState(
+    updateInstallmentReason.bind(null, editingId ?? ""),
+    initial,
+  );
+  // Close the edit form once a save succeeds. Adjusting state during render
+  // (rather than in an effect) in response to editState changing, per React's
+  // guidance for resetting state when something the component is rendering
+  // from has changed.
+  const [seenEditState, setSeenEditState] = useState(editState);
+  if (editState !== seenEditState) {
+    setSeenEditState(editState);
+    if (editState !== initial && !editState.error) {
+      setEditingId(null);
+    }
+  }
 
   const buckets = buildBuckets(installmentAmount, reasons, unassignedPaidAmount, copy.noReason);
   const paidSoFar = totalPaid(buckets);
@@ -67,6 +84,12 @@ export function InstallmentReasons({
         <p className="text-xs text-stone-500">
           {formatMoney(paidSoFar, currency, locale)} / {formatMoney(installmentAmount, currency, locale)}{" "}
           {copy.covered}
+          {owed > 0 ? (
+            <>
+              {" · "}
+              {copy.owedTotal} {formatMoney(owed, currency, locale)}
+            </>
+          ) : null}
         </p>
 
         <ul className="mt-2 flex flex-col gap-1.5">
@@ -79,6 +102,47 @@ export function InstallmentReasons({
               ? toggleUnassignedPaid.bind(null, installmentId, !isPaid)
               : toggleReasonPaid.bind(null, bucket.id, !isPaid);
             const reason = reasons.find((item) => item.id === bucket.id);
+
+            if (reason && editingId === reason.id) {
+              return (
+                <li key={bucket.id} className="text-sm text-stone-200">
+                  <form action={editAction} className="flex flex-wrap items-center gap-2">
+                    <input
+                      name="label"
+                      required
+                      defaultValue={reason.label}
+                      className="min-w-0 flex-1 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+                    />
+                    <input
+                      name="amount"
+                      required
+                      inputMode="decimal"
+                      defaultValue={(reason.amount / 100).toFixed(2)}
+                      className="w-28 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 font-mono text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+                    />
+                    <button
+                      type="submit"
+                      disabled={editPending}
+                      className="rounded-lg border border-stone-600 px-3 py-1.5 text-xs text-stone-300 hover:border-amber-200/70 hover:text-amber-100 disabled:opacity-60"
+                    >
+                      {editPending ? copy.abonoSubmitting : copy.save}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="rounded-lg border border-stone-700 px-3 py-1.5 text-xs text-stone-400 hover:border-stone-500"
+                    >
+                      {copy.cancel}
+                    </button>
+                  </form>
+                  {editState.error ? (
+                    <p className="mt-1 text-xs text-red-300" role="alert">
+                      {editState.error}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            }
 
             return (
               <li
@@ -117,12 +181,21 @@ export function InstallmentReasons({
                     </button>
                   </form>
                   {reason ? (
-                    <ConfirmDeleteButton
-                      label={copy.remove}
-                      pendingLabel={deletingLabel}
-                      confirmMessage={reason.removeConfirm}
-                      onDelete={deleteInstallmentReason.bind(null, reason.id)}
-                    />
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(reason.id)}
+                        className="rounded-lg border border-stone-700 px-3 py-1.5 text-xs text-stone-300 hover:border-amber-200/70 hover:text-amber-100"
+                      >
+                        {copy.edit}
+                      </button>
+                      <ConfirmDeleteButton
+                        label={copy.remove}
+                        pendingLabel={deletingLabel}
+                        confirmMessage={reason.removeConfirm}
+                        onDelete={deleteInstallmentReason.bind(null, reason.id)}
+                      />
+                    </>
                   ) : null}
                 </span>
               </li>
@@ -168,23 +241,46 @@ export function InstallmentReasons({
             <p className="text-xs font-medium tracking-wide text-stone-400 uppercase">
               {copy.abonoTitle}
             </p>
-            <form action={abonoAction} className="mt-2 flex flex-wrap items-center gap-2">
-              <input
-                name="amount"
-                required
-                inputMode="decimal"
-                placeholder={copy.amountPlaceholder}
-                className="w-28 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 font-mono text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
-              />
-              <select
-                name="method"
-                defaultValue=""
-                className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
-              >
-                <option value="">{copy.abonoMethodUnset}</option>
-                <option value="CASH">{methodLabels.CASH}</option>
-                <option value="TRANSFER">{methodLabels.TRANSFER}</option>
-              </select>
+            <form action={abonoAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-xs text-stone-400">
+                {copy.abonoAmountLabel}
+                <input
+                  name="amount"
+                  required
+                  inputMode="decimal"
+                  placeholder={copy.amountPlaceholder}
+                  className="w-28 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 font-mono text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-stone-400">
+                {copy.abonoTargetLabel}
+                <select
+                  name="targetId"
+                  defaultValue=""
+                  className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+                >
+                  <option value="">{copy.abonoTargetGeneral}</option>
+                  {buckets
+                    .filter((bucket) => bucket.amount - bucket.paidAmount > 0)
+                    .map((bucket) => (
+                      <option key={bucket.id} value={bucket.id}>
+                        {bucket.label} ({formatMoney(bucket.amount - bucket.paidAmount, currency, locale)})
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-stone-400">
+                {copy.abonoMethodLabel}
+                <select
+                  name="method"
+                  defaultValue=""
+                  className="rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-50 outline-none ring-amber-400/40 focus:ring-2"
+                >
+                  <option value="">{copy.abonoMethodUnset}</option>
+                  <option value="CASH">{methodLabels.CASH}</option>
+                  <option value="TRANSFER">{methodLabels.TRANSFER}</option>
+                </select>
+              </label>
               <button
                 type="submit"
                 disabled={abonoPending}
