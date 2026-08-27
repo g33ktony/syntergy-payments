@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { isValidSessionToken, SESSION_COOKIE } from "@/lib/auth";
+import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const valid = isValidSessionToken(token);
+  const valid = verifySessionToken(token) !== null;
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/signup") {
     if (valid) {
       return NextResponse.redirect(new URL("/", request.url));
     }

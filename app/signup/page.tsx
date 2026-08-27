@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { LoginForm } from "@/app/login/login-form";
+import { SignupForm } from "@/app/signup/signup-form";
 import { LanguageToggle } from "@/components/language-toggle";
 import { getDictionary } from "@/lib/get-dictionary";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string }>;
-}) {
-  const { next } = await searchParams;
+export default async function SignupPage() {
   const { locale, t } = await getDictionary();
 
   return (
@@ -19,23 +14,23 @@ export default async function LoginPage({
             {t.brand}
           </p>
           <h1 className="mt-2 font-serif text-4xl tracking-tight text-stone-50">
-            {t.product}
+            {t.signup.title}
           </h1>
         </div>
         <LanguageToggle locale={locale} />
       </div>
-      <p className="mt-3 text-sm leading-6 text-stone-400">{t.login.subtitle}</p>
-      <LoginForm
-        nextPath={next && next.startsWith("/") ? next : "/"}
+      <p className="mt-3 text-sm leading-6 text-stone-400">{t.signup.subtitle}</p>
+      <SignupForm
         emailLabel={t.login.email}
         passwordLabel={t.login.password}
-        submitLabel={t.login.submit}
-        submittingLabel={t.login.submitting}
+        passwordHint={t.signup.passwordHint}
+        submitLabel={t.signup.submit}
+        submittingLabel={t.signup.submitting}
       />
       <p className="mt-6 text-sm text-stone-500">
-        {t.login.noAccount}{" "}
-        <Link href="/signup" className="text-amber-100 hover:text-amber-50">
-          {t.login.signupLink}
+        {t.signup.haveAccount}{" "}
+        <Link href="/login" className="text-amber-100 hover:text-amber-50">
+          {t.signup.loginLink}
         </Link>
       </p>
     </main>

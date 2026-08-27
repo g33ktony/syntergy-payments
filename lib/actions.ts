@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import { prisma } from "@/lib/db";
 import {
@@ -36,6 +37,7 @@ export async function createObligation(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
   const title = String(formData.get("title") || "").trim();
   const personId = String(formData.get("personId") || "");
@@ -82,6 +84,7 @@ export async function createObligation(
     }
     const person = await prisma.person.create({
       data: {
+        accountId,
         name: newPersonName,
         nickname: newPersonNickname || null,
         phone: newPersonPhone || null,
@@ -89,8 +92,8 @@ export async function createObligation(
     });
     resolvedPersonId = person.id;
   } else {
-    const existing = await prisma.person.findUnique({
-      where: { id: personId },
+    const existing = await prisma.person.findFirst({
+      where: { id: personId, accountId },
     });
     if (!existing) {
       return { error: t.errors.personMissing };
@@ -125,6 +128,7 @@ export async function updatePerson(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
   const personId = String(formData.get("personId") || "");
   const name = String(formData.get("name") || "").trim();
@@ -142,8 +146,8 @@ export async function updatePerson(
     return { error: t.errors.paymentMethodRequired };
   }
 
-  await prisma.person.update({
-    where: { id: personId },
+  const { count } = await prisma.person.updateMany({
+    where: { id: personId, accountId },
     data: {
       name,
       nickname: nickname || null,
@@ -154,6 +158,9 @@ export async function updatePerson(
       notes: notes || null,
     },
   });
+  if (count === 0) {
+    return { error: t.errors.personMissing };
+  }
   refreshPaths(personId);
   return {};
 }
@@ -162,13 +169,14 @@ export async function markInstallmentPaid(
   installmentId: string,
   method: PaymentMethod,
 ) {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
   if (!isPaymentMethod(method)) {
     throw new Error(t.errors.paymentMethodRequired);
   }
 
-  const installment = await prisma.installment.findUnique({
-    where: { id: installmentId },
+  const installment = await prisma.installment.findFirst({
+    where: { id: installmentId, obligation: { person: { accountId } } },
     include: { reasons: true, obligation: true },
   });
   if (!installment) {
@@ -230,6 +238,7 @@ export async function addInstallmentReason(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
   const label = String(formData.get("label") || "").trim();
   const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
@@ -241,8 +250,8 @@ export async function addInstallmentReason(
     return { error: t.errors.amountInvalid };
   }
 
-  const installment = await prisma.installment.findUnique({
-    where: { id: installmentId },
+  const installment = await prisma.installment.findFirst({
+    where: { id: installmentId, obligation: { person: { accountId } } },
     include: { reasons: true, obligation: true },
   });
   if (!installment) {
@@ -281,8 +290,9 @@ export async function addInstallmentReason(
 }
 
 export async function deleteInstallmentReason(reasonId: string) {
-  const reason = await prisma.installmentReason.findUnique({
-    where: { id: reasonId },
+  const accountId = await getCurrentAccountId();
+  const reason = await prisma.installmentReason.findFirst({
+    where: { id: reasonId, installment: { obligation: { person: { accountId } } } },
     include: { installment: { include: { obligation: true } } },
   });
   if (!reason) {
@@ -303,8 +313,9 @@ export async function deleteInstallmentReason(reasonId: string) {
 }
 
 export async function toggleReasonPaid(reasonId: string, paid: boolean) {
-  const reason = await prisma.installmentReason.findUnique({
-    where: { id: reasonId },
+  const accountId = await getCurrentAccountId();
+  const reason = await prisma.installmentReason.findFirst({
+    where: { id: reasonId, installment: { obligation: { person: { accountId } } } },
     include: { installment: { include: { obligation: true } } },
   });
   if (!reason) {
@@ -323,8 +334,9 @@ export async function toggleReasonPaid(reasonId: string, paid: boolean) {
 }
 
 export async function toggleUnassignedPaid(installmentId: string, paid: boolean) {
-  const installment = await prisma.installment.findUnique({
-    where: { id: installmentId },
+  const accountId = await getCurrentAccountId();
+  const installment = await prisma.installment.findFirst({
+    where: { id: installmentId, obligation: { person: { accountId } } },
     include: { reasons: true, obligation: true },
   });
   if (!installment) {
@@ -352,6 +364,7 @@ export async function registerInstallmentAbono(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
   const amountCents = parseAmountToCents(String(formData.get("amount") || ""));
   const methodRaw = String(formData.get("method") || "");
@@ -361,8 +374,8 @@ export async function registerInstallmentAbono(
     return { error: t.errors.amountInvalid };
   }
 
-  const installment = await prisma.installment.findUnique({
-    where: { id: installmentId },
+  const installment = await prisma.installment.findFirst({
+    where: { id: installmentId, obligation: { person: { accountId } } },
     include: { reasons: { orderBy: { createdAt: "asc" } }, obligation: true },
   });
   if (!installment) {
@@ -407,8 +420,9 @@ export async function registerInstallmentAbono(
 }
 
 export async function deleteObligation(obligationId: string) {
-  const obligation = await prisma.obligation.findUnique({
-    where: { id: obligationId },
+  const accountId = await getCurrentAccountId();
+  const obligation = await prisma.obligation.findFirst({
+    where: { id: obligationId, person: { accountId } },
     select: { personId: true },
   });
   if (!obligation) {
@@ -420,7 +434,8 @@ export async function deleteObligation(obligationId: string) {
 }
 
 export async function deletePerson(personId: string) {
-  await prisma.person.delete({ where: { id: personId } });
+  const accountId = await getCurrentAccountId();
+  await prisma.person.deleteMany({ where: { id: personId, accountId } });
   refreshPaths();
   redirect("/");
 }

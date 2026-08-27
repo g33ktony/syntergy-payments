@@ -15,23 +15,24 @@ export type InstallmentWithObligation = Awaited<
   ReturnType<typeof getUpcomingInstallments>
 >[number];
 
-export async function getUpcomingInstallments() {
+export async function getUpcomingInstallments(accountId: string) {
   return prisma.installment.findMany({
-    where: { paidAt: null },
+    where: { paidAt: null, obligation: { person: { accountId } } },
     orderBy: { dueDate: "asc" },
     include: installmentInclude,
   });
 }
 
-export async function getPeople() {
+export async function getPeople(accountId: string) {
   return prisma.person.findMany({
+    where: { accountId },
     orderBy: { name: "asc" },
   });
 }
 
-export async function getPersonProfile(id: string) {
-  const person = await prisma.person.findUnique({
-    where: { id },
+export async function getPersonProfile(id: string, accountId: string) {
+  const person = await prisma.person.findFirst({
+    where: { id, accountId },
     include: {
       obligations: {
         orderBy: { createdAt: "desc" },
@@ -103,9 +104,9 @@ export function progressFor(installments: { paidAt: Date | null }[]) {
   return { paidCount, total: installments.length };
 }
 
-export async function getWallet() {
+export async function getWallet(accountId: string) {
   const paid = await prisma.installment.findMany({
-    where: { paidAt: { not: null } },
+    where: { paidAt: { not: null }, obligation: { person: { accountId } } },
     orderBy: { paidAt: "desc" },
     include: installmentInclude,
   });
