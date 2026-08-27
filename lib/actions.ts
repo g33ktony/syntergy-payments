@@ -237,9 +237,12 @@ export async function markInstallmentPaid(
   refreshPaths(installment.obligation.personId);
 }
 
-// Marks the installment as fully paid once every bucket (named reasons plus
-// whatever is unassigned) has been covered. Once paidAt is set it is never
-// cleared here: motivo edits after that point are informational only.
+// Keeps paidAt in sync with whether every bucket (named reasons plus
+// whatever is unassigned) is covered: sets it the moment the total reaches
+// the installment amount, and clears it again the moment it doesn't (e.g. a
+// motivo gets marked pending after the installment was already complete).
+// This keeps the installment consistent everywhere it's read from — the
+// upcoming/paid split on the ledger and person page, and the wallet history.
 async function syncInstallmentPaidState(
   tx: Prisma.TransactionClient,
   installmentId: string,
@@ -249,18 +252,22 @@ async function syncInstallmentPaidState(
     where: { id: installmentId },
     include: { reasons: true },
   });
-  if (installment.paidAt) {
-    return;
-  }
 
   const paidSoFar =
     installment.reasons.reduce((sum, reason) => sum + reason.paidAmount, 0) +
     installment.unassignedPaidAmount;
 
   if (paidSoFar >= installment.amount) {
+    if (!installment.paidAt) {
+      await tx.installment.update({
+        where: { id: installmentId },
+        data: { paidAt: new Date(), paymentMethod: method },
+      });
+    }
+  } else if (installment.paidAt) {
     await tx.installment.update({
       where: { id: installmentId },
-      data: { paidAt: new Date(), paymentMethod: method },
+      data: { paidAt: null, paymentMethod: null },
     });
   }
 }
@@ -426,7 +433,15 @@ export async function toggleReasonPaid(reasonId: string, paid: boolean) {
       where: { id: reasonId },
       data: { paidAmount: paid ? reason.amount : 0 },
     });
-    await logPaymentEvent(tx, reason.installmentId, reason.label, delta, null);
+    if (paid) {
+      await logPaymentEvent(tx, reason.installmentId, reason.label, delta, null);
+    } else {
+      // Marking pending resets this motivo to unpaid; its payment history
+      // shouldn't linger in the wallet claiming otherwise.
+      await tx.paymentEvent.deleteMany({
+        where: { installmentId: reason.installmentId, reasonLabel: reason.label },
+      });
+    }
     await syncInstallmentPaidState(tx, reason.installmentId, null);
   });
 
@@ -456,7 +471,13 @@ export async function toggleUnassignedPaid(installmentId: string, paid: boolean)
       where: { id: installmentId },
       data: { unassignedPaidAmount: paid ? unassigned : 0 },
     });
-    await logPaymentEvent(tx, installmentId, t.reasons.noReason, delta, null);
+    if (paid) {
+      await logPaymentEvent(tx, installmentId, t.reasons.noReason, delta, null);
+    } else {
+      await tx.paymentEvent.deleteMany({
+        where: { installmentId, reasonLabel: t.reasons.noReason },
+      });
+    }
     await syncInstallmentPaidState(tx, installmentId, null);
   });
 
