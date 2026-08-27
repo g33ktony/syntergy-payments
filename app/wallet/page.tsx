@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/app-header";
+import { InstallmentRow } from "@/components/installment-row";
 import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import { localeTag } from "@/lib/i18n";
@@ -127,41 +128,9 @@ export default async function WalletPage() {
             <p className="mt-3 text-sm text-stone-500">{t.wallet.empty}</p>
           ) : (
             <ul className="mt-2">
-              {paid.map((item) => {
-                const method =
-                  item.paymentMethod === "CASH"
-                    ? t.method.CASH
-                    : item.paymentMethod === "TRANSFER"
-                      ? t.method.TRANSFER
-                      : t.method.unknown;
-                return (
-                  <li
-                    key={item.id}
-                    className="grid gap-1 border-b border-stone-800 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                  >
-                    <div>
-                      <Link
-                        href={`/people/${item.obligation.person.id}`}
-                        className="font-medium text-stone-50 hover:text-amber-100"
-                      >
-                        {personLabel(item.obligation.person)}
-                      </Link>
-                      <p className="mt-1 text-sm text-stone-400">
-                        {item.obligation.title}
-                      </p>
-                      <p className="mt-1 text-xs text-stone-500">
-                        {item.paidAt
-                          ? formatDueDate(item.paidAt, tag)
-                          : "—"}{" "}
-                        · {method}
-                      </p>
-                    </div>
-                    <p className="font-mono text-sm text-amber-100">
-                      {formatMoney(item.amount, item.obligation.currency, tag)}
-                    </p>
-                  </li>
-                );
-              })}
+              {paid.map((item) => (
+                <InstallmentRow key={item.id} installment={item} showPaidAt />
+              ))}
             </ul>
           )}
         </section>
