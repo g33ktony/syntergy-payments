@@ -4,6 +4,7 @@ import { InstallmentGroup } from "@/components/installment-group";
 import { InstallmentRow, type RowProps } from "@/components/installment-row";
 import { PersonDetailsForm } from "@/components/person-details-form";
 import { deleteObligation, deletePerson } from "@/lib/actions";
+import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import type { Dictionary } from "@/lib/i18n";
 import { localeTag } from "@/lib/i18n";
@@ -24,9 +25,10 @@ export default async function PersonPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const accountId = await getCurrentAccountId();
   const { locale, t } = await getDictionary();
   const tag = localeTag(locale);
-  const profile = await getPersonProfile(id);
+  const profile = await getPersonProfile(id, accountId);
   if (!profile) {
     notFound();
   }

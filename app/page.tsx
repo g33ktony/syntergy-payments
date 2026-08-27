@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { InstallmentGroup } from "@/components/installment-group";
+import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import { groupBySequence, startOfUtcDay } from "@/lib/installments";
 import { getUpcomingInstallments } from "@/lib/queries";
@@ -7,8 +8,9 @@ import Link from "next/link";
 import type { Dictionary } from "@/lib/i18n";
 
 export default async function DashboardPage() {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
-  const upcoming = await getUpcomingInstallments();
+  const upcoming = await getUpcomingInstallments(accountId);
   const today = startOfUtcDay();
   const overdue = upcoming.filter((item) => item.dueDate < today);
   const dueSoon = upcoming.filter((item) => item.dueDate >= today);

@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/app-header";
+import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import { localeTag } from "@/lib/i18n";
 import { formatDueDate } from "@/lib/installments";
@@ -8,9 +9,10 @@ import { getWallet } from "@/lib/queries";
 import Link from "next/link";
 
 export default async function WalletPage() {
+  const accountId = await getCurrentAccountId();
   const { locale, t } = await getDictionary();
   const tag = localeTag(locale);
-  const { paid, totals } = await getWallet();
+  const { paid, totals } = await getWallet(accountId);
 
   return (
     <>

@@ -1,13 +1,15 @@
 import { AppHeader } from "@/components/app-header";
 import { ObligationForm } from "@/components/obligation-form";
+import { getCurrentAccountId } from "@/lib/auth-server";
 import { getDictionary } from "@/lib/get-dictionary";
 import { defaultCurrency } from "@/lib/money";
 import { getPeople } from "@/lib/queries";
 import Link from "next/link";
 
 export default async function NewObligationPage() {
+  const accountId = await getCurrentAccountId();
   const { t } = await getDictionary();
-  const people = await getPeople();
+  const people = await getPeople(accountId);
   const currency = defaultCurrency();
 
   return (
