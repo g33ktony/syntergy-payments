@@ -137,3 +137,17 @@ export async function getWallet(accountId: string) {
 
   return { paid, totals: [...byCurrency.entries()] };
 }
+
+export async function getPartialPaymentEvents(accountId: string) {
+  return prisma.paymentEvent.findMany({
+    where: {
+      installment: { paidAt: null, obligation: { person: { accountId } } },
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      installment: {
+        include: { obligation: { include: { person: true } } },
+      },
+    },
+  });
+}

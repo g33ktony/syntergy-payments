@@ -24,6 +24,21 @@ export type ActionState = {
   error?: string;
 };
 
+async function logPaymentEvent(
+  tx: Prisma.TransactionClient,
+  installmentId: string,
+  reasonLabel: string,
+  amount: number,
+  method: PaymentMethod | null,
+) {
+  if (amount <= 0) {
+    return;
+  }
+  await tx.paymentEvent.create({
+    data: { installmentId, reasonLabel, amount, method },
+  });
+}
+
 function refreshPaths(personId?: string) {
   revalidatePath("/");
   revalidatePath("/wallet");
@@ -184,23 +199,40 @@ export async function markInstallmentPaid(
   }
 
   const unassigned = remainingAmount(installment.amount, installment.reasons);
+  const buckets = buildBuckets(
+    installment.amount,
+    installment.reasons,
+    installment.unassignedPaidAmount,
+    t.reasons.noReason,
+  );
 
-  await prisma.$transaction([
-    prisma.installment.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.installment.update({
       where: { id: installmentId },
       data: {
         paidAt: new Date(),
         paymentMethod: method,
         unassignedPaidAmount: unassigned,
       },
-    }),
-    ...installment.reasons.map((reason) =>
-      prisma.installmentReason.update({
-        where: { id: reason.id },
-        data: { paidAmount: reason.amount },
-      }),
-    ),
-  ]);
+    });
+    await Promise.all(
+      installment.reasons.map((reason) =>
+        tx.installmentReason.update({
+          where: { id: reason.id },
+          data: { paidAmount: reason.amount },
+        }),
+      ),
+    );
+    for (const bucket of buckets) {
+      await logPaymentEvent(
+        tx,
+        installmentId,
+        bucket.label,
+        bucket.amount - bucket.paidAmount,
+        method,
+      );
+    }
+  });
 
   refreshPaths(installment.obligation.personId);
 }
@@ -387,11 +419,14 @@ export async function toggleReasonPaid(reasonId: string, paid: boolean) {
     return;
   }
 
+  const delta = paid ? reason.amount - reason.paidAmount : 0;
+
   await prisma.$transaction(async (tx) => {
     await tx.installmentReason.update({
       where: { id: reasonId },
       data: { paidAmount: paid ? reason.amount : 0 },
     });
+    await logPaymentEvent(tx, reason.installmentId, reason.label, delta, null);
     await syncInstallmentPaidState(tx, reason.installmentId, null);
   });
 
@@ -400,6 +435,7 @@ export async function toggleReasonPaid(reasonId: string, paid: boolean) {
 
 export async function toggleUnassignedPaid(installmentId: string, paid: boolean) {
   const accountId = await getCurrentAccountId();
+  const { t } = await getDictionary();
   const installment = await prisma.installment.findFirst({
     where: { id: installmentId, obligation: { person: { accountId } } },
     include: { reasons: true, obligation: true },
@@ -413,11 +449,14 @@ export async function toggleUnassignedPaid(installmentId: string, paid: boolean)
     return;
   }
 
+  const delta = paid ? unassigned - installment.unassignedPaidAmount : 0;
+
   await prisma.$transaction(async (tx) => {
     await tx.installment.update({
       where: { id: installmentId },
       data: { unassignedPaidAmount: paid ? unassigned : 0 },
     });
+    await logPaymentEvent(tx, installmentId, t.reasons.noReason, delta, null);
     await syncInstallmentPaidState(tx, installmentId, null);
   });
 
@@ -482,6 +521,7 @@ export async function registerInstallmentAbono(
           data: { paidAmount: target.paidAmount + amountCents },
         });
       }
+      await logPaymentEvent(tx, installmentId, target.label, amountCents, method);
       await syncInstallmentPaidState(tx, installmentId, method);
     });
 
@@ -500,7 +540,8 @@ export async function registerInstallmentAbono(
   const updated = distributeAbono(buckets, amountCents);
 
   await prisma.$transaction(async (tx) => {
-    for (const bucket of updated) {
+    for (const [index, bucket] of updated.entries()) {
+      const delta = bucket.paidAmount - buckets[index].paidAmount;
       if (bucket.id === UNASSIGNED_BUCKET_ID) {
         await tx.installment.update({
           where: { id: installmentId },
@@ -512,6 +553,7 @@ export async function registerInstallmentAbono(
           data: { paidAmount: bucket.paidAmount },
         });
       }
+      await logPaymentEvent(tx, installmentId, bucket.label, delta, method);
     }
     await syncInstallmentPaidState(tx, installmentId, method);
   });
