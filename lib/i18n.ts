@@ -62,6 +62,9 @@ const es = {
     empty: "Todavía no hay cobros. Al marcar un abono como pagado, elige efectivo o transferencia.",
     when: "Fecha",
     method: "Método",
+    partial: "Pagos parciales",
+    partialEmpty: "No hay abonos parciales pendientes.",
+    unspecifiedMethod: "Sin especificar",
   },
   obligation: {
     title: "Registrar una obligación",
@@ -260,6 +263,9 @@ const en: typeof es = {
       "No collections yet. When you mark an installment paid, choose cash or transfer.",
     when: "Date",
     method: "Method",
+    partial: "Partial payments",
+    partialEmpty: "No partial payments pending.",
+    unspecifiedMethod: "Unspecified",
   },
   obligation: {
     title: "Register an obligation",

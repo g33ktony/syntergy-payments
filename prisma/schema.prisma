@@ -65,10 +65,24 @@ model Installment {
   createdAt      DateTime        @default(now())
   unassignedPaidAmount Int       @default(0)
   reasons        InstallmentReason[]
+  paymentEvents  PaymentEvent[]
 
   @@unique([obligationId, sequence])
   @@index([dueDate])
   @@index([paidAt])
+}
+
+model PaymentEvent {
+  id            String         @id @default(cuid())
+  installmentId String
+  installment   Installment    @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+  reasonLabel   String
+  amount        Int
+  method        PaymentMethod?
+  createdAt     DateTime       @default(now())
+
+  @@index([installmentId])
+  @@index([createdAt])
 }
 
 model InstallmentReason {
